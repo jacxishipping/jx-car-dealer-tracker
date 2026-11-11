@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+/* Tailwind v4's dark: variant defaults to prefers-color-scheme, but the app
+   toggles dark mode with a `.dark` class on <html> (Layout + Settings).
+   Without this, toggling the theme flipped only the hand-written body rules
+   while every dark: background stayed light — dark mode was effectively
+   broken. Class-based variant makes dark: follow the .dark class. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --color-accent: #4f46e5;
+  --color-canvas: #f8fafc;
+}
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #f8fafc;
+  color: #0f172a;
+  margin: 0;
+}
+.dark body {
+  background: #0b0f19;
+  color: #f1f5f9;
+}
+
+/* ---- Responsive containment (added 2026-11-11) ---- */
+/* Grid and flex items default to min-width:auto, so a wide table or button row
+   inside a card can force the whole page wider than the viewport (page-level
+   horizontal scroll at tablet widths). Letting grid items shrink below their
+   content size keeps overflow inside the card's own overflow-x-auto scroller. */
+.grid > * {
+  min-width: 0;
+}
+
+/* JXButton locks its width to >=180px with an inline min-width style
+   (lockWidth defaults to true — it prevents morph-state layout shift).
+   Inside wrapping toolbars, chip rows and pagination that lock forces rows
+   wider than the screen, so release it there only. The !important is
+   required because the min-width is an inline style. The 44px touch target
+   JXButton enforces via min-h is untouched. */
+.flex-wrap button[style*="min-width"] {
+  min-width: 0 !important;
+}
