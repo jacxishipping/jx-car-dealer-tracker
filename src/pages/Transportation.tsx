@@ -1,8 +1,9 @@
+import {JXButton, JXSelect} from '../components/JXUI'
 // Transportation — transport orders, status advance, delivery documents.
 // Delivering an order (store updateTransport) adds its price to the vehicle
 // cost basis and sets an In-transit vehicle to Received.
 import { useMemo, useState } from 'react'
-import { JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { ChevronDown, ChevronUp, Plus, Truck } from 'lucide-react'
 import { useStore } from '../store/store'
 import { fmtMoney, TRANSPORT_STATUSES, type TransportOrder, type TransportStatus } from '../store/types'

@@ -1,9 +1,10 @@
+import {JXButton, JXCard} from './JXUI'
 // Login / register screen — shown only in API mode (VITE_API_URL is set)
 // when there is no token. In demo mode this screen is never rendered.
 // On success the tokens are stored by api.login / api.register and the
 // page reloads so App renders the app shell with an authenticated store.
 import { useState, type FormEvent } from 'react'
-import { JXButton, JXCard } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "./AppTextField"
 import { Car, Eye, EyeOff } from 'lucide-react'
 import * as api from '../lib/api'

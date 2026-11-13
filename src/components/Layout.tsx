@@ -1,3 +1,4 @@
+import {JXAvatar, JXButton, JXSelect} from './JXUI'
 // Application shell: collapsible sidebar, top bar (global search, notifications,
 // quick-create, role switcher, theme toggle, user menu), main content area.
 // JXUI: JXAvatar + JXSelect (verified APIs) + JXButton. Theme is applied by
@@ -6,7 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign, FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon, ShoppingCart, Sparkles, Sun, Truck, Users, Wallet, Wrench, X, } from 'lucide-react'
-import { JXAvatar, JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "./AppTextField"
 import { useStore } from '../store/store'
 import { ROLES } from '../store/types'

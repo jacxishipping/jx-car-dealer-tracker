@@ -1,8 +1,9 @@
+import {JXButton} from '../components/JXUI'
 // Purchases — acquisition list + "Record purchase" (recordPurchase atomically
 // creates vehicle + purchase + payment/journal + inventory entry).
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { JXButton } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/store'

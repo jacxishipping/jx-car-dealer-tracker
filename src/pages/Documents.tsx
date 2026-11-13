@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { ROLES, type DocRecord, type Role } from '../store/types'
 import { Alert, EmptyState, ExportButton, Field, inputCls, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
+import {JXButton, JXSelect} from '../components/JXUI'
 const DOC_TYPES = ['Vehicle title', 'Bill of sale', 'Auction invoice', 'Bill of lading', 'Repair invoice', 'Customer identification', 'Sales contract', 'Payment receipt', 'Insurance', 'Other']
 const ENTITY_TYPES: DocRecord['entityType'][] = ['Vehicle', 'Customer', 'Expense', 'Transaction', 'Deal']
 const today = () => new Date().toISOString().slice(0, 10)

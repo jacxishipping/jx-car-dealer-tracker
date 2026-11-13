@@ -173,3 +173,173 @@ input[aria-label='Filter select options']:focus {
 .flex-wrap button[style*="min-width"] {
   min-width: 0 !important;
 }
+
+/* ---- JXUI tracker skin -------------------------------------------------
+   All rules are scoped to classes added by components/JXUI.tsx. This keeps
+   library defaults intact elsewhere while giving the tracker one coherent
+   control, surface, and feedback system in both themes. */
+#root .jx-app-button,
+#root .jx-app-card,
+#root .jx-app-alert,
+#root .jx-app-chip,
+#root .jx-app-select,
+#root .jx-app-text-field,
+#root .jx-app-switch,
+#root .jx-app-avatar,
+#root .jx-app-avatar-group,
+#root .jx-app-timeline,
+#root .jx-app-progress,
+#root .jx-app-button-group {
+  font-family: var(--font-sans);
+  letter-spacing: normal;
+}
+
+#root .jx-app-button {
+  min-height: 2.5rem;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  box-shadow: none;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+#root .jx-app-button--contained.jx-app-button--primary { background-color: #4f46e5; border-color: #4f46e5; color: #fff; }
+#root .jx-app-button--contained.jx-app-button--primary:hover:not(:disabled) { background-color: #4338ca; border-color: #4338ca; }
+#root .jx-app-button--contained.jx-app-button--success { background-color: #059669; border-color: #059669; color: #fff; }
+#root .jx-app-button--contained.jx-app-button--success:hover:not(:disabled) { background-color: #047857; border-color: #047857; }
+#root .jx-app-button--contained.jx-app-button--error { background-color: #e11d48; border-color: #e11d48; color: #fff; }
+#root .jx-app-button--contained.jx-app-button--error:hover:not(:disabled) { background-color: #be123c; border-color: #be123c; }
+#root .jx-app-button--contained.jx-app-button--warning { background-color: #d97706; border-color: #d97706; color: #fff; }
+#root .jx-app-button--contained.jx-app-button--neutral { background-color: #334155; border-color: #334155; color: #fff; }
+#root .jx-app-button--outlined { background-color: transparent; border-color: #cbd5e1; color: #334155; }
+#root .jx-app-button--outlined:hover:not(:disabled) { background-color: #f8fafc; border-color: #94a3b8; }
+#root .jx-app-button--soft { box-shadow: none; }
+#root .jx-app-button--text { background: transparent; box-shadow: none; }
+#root .jx-app-button:disabled { cursor: not-allowed; opacity: 0.55; }
+#root .jx-app-button:active:not(:disabled) { transform: none; }
+.dark #root .jx-app-button--outlined { border-color: #475569; color: #e2e8f0; }
+.dark #root .jx-app-button--outlined:hover:not(:disabled) { background-color: #1e293b; border-color: #64748b; }
+.dark #root .jx-app-button--contained.jx-app-button--neutral { background-color: #475569; border-color: #475569; }
+
+#root .jx-app-card {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border-color: #e2e8f0;
+  background-color: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+  transform: none;
+}
+.dark #root .jx-app-card {
+  border-color: #334155;
+  background-color: var(--color-surface-dark);
+  color: #f8fafc;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+
+#root .jx-app-alert {
+  border-radius: var(--radius-control);
+  padding: 0.875rem 1rem;
+  box-shadow: none;
+}
+#root .jx-app-alert > div:first-child { align-items: flex-start; }
+#root .jx-app-alert [class*='font-bold'] { font-size: 0.875rem; line-height: 1.25rem; }
+#root .jx-app-alert p { font-size: 0.8125rem; line-height: 1.25rem; }
+#root .jx-app-alert button { min-height: 2.25rem; border-radius: var(--radius-control); }
+#root .jx-app-alert[class*='bg-amber-50'] { border-color: #fcd34d; background-color: #fffbeb; color: #78350f; }
+#root .jx-app-alert[class*='bg-emerald-50'] { border-color: #a7f3d0; background-color: #ecfdf5; color: #064e3b; }
+#root .jx-app-alert[class*='bg-rose-50'] { border-color: #fecdd3; background-color: #fff1f2; color: #881337; }
+#root .jx-app-alert[class*='bg-sky-50'] { border-color: #bae6fd; background-color: #f0f9ff; color: #0c4a6e; }
+#root .jx-app-alert[class*='bg-amber-50'] > div > svg { color: #d97706; }
+#root .jx-app-alert[class*='bg-emerald-50'] > div > svg { color: #059669; }
+#root .jx-app-alert[class*='bg-rose-50'] > div > svg { color: #e11d48; }
+#root .jx-app-alert[class*='bg-sky-50'] > div > svg { color: #0284c7; }
+.dark #root .jx-app-alert[class*='bg-amber-50'] { border-color: #92400e; background-color: #451a03; color: #fde68a; }
+.dark #root .jx-app-alert[class*='bg-emerald-50'] { border-color: #065f46; background-color: #022c22; color: #a7f3d0; }
+.dark #root .jx-app-alert[class*='bg-rose-50'] { border-color: #9f1239; background-color: #4c0519; color: #fecdd3; }
+.dark #root .jx-app-alert[class*='bg-sky-50'] { border-color: #075985; background-color: #082f49; color: #bae6fd; }
+
+#root .jx-app-chip {
+  min-height: 1.5rem;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
+
+#root .jx-app-text-field { width: 100%; min-width: 0; gap: 0.375rem; }
+#root .jx-app-text-field input,
+#root .jx-app-text-field textarea,
+#root .jx-app-select button[aria-haspopup='listbox'],
+#root .jx-app-select input[aria-label='Filter select options'] {
+  min-height: 2.75rem;
+  border-radius: var(--radius-control);
+  border-color: #cbd5e1;
+  background-color: #fff;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  box-shadow: none;
+}
+#root .jx-app-text-field input::placeholder,
+#root .jx-app-select input::placeholder { color: #64748b; opacity: 1; }
+#root .jx-app-text-field input:focus,
+#root .jx-app-text-field textarea:focus,
+#root .jx-app-select button[aria-haspopup='listbox']:focus-visible,
+#root .jx-app-select input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgb(79 70 229 / 0.17);
+  outline: none;
+}
+#root .jx-app-text-field [role='alert'],
+#root .jx-app-text-field .text-rose-600 { color: #be123c; }
+#root .jx-app-select [role='listbox'] {
+  z-index: 80;
+  max-height: min(18rem, 55vh);
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-control);
+  background-color: #fff;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 0.14);
+}
+.dark #root .jx-app-text-field input,
+.dark #root .jx-app-text-field textarea,
+.dark #root .jx-app-select button[aria-haspopup='listbox'],
+.dark #root .jx-app-select input[aria-label='Filter select options'] {
+  border-color: #475569;
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+.dark #root .jx-app-text-field input::placeholder,
+.dark #root .jx-app-select input::placeholder { color: #94a3b8; }
+.dark #root .jx-app-select [role='listbox'] {
+  border-color: #334155;
+  background-color: #1e293b;
+  color: #e2e8f0;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.4);
+}
+
+#root .jx-app-switch { font-family: var(--font-sans); }
+#root .jx-app-switch:focus-within { outline: 2px solid #4f46e5; outline-offset: 3px; border-radius: var(--radius-control); }
+#root .jx-app-avatar { background-image: none; background-color: #4f46e5; box-shadow: none; }
+#root .jx-app-avatar-group { transition: none; }
+#root .jx-app-timeline { font-family: var(--font-sans); }
+#root .jx-app-progress { font-family: var(--font-sans); }
+#root .jx-app-button-group { gap: 0.25rem; }
+#root .jx-app-button-group button { min-height: 2.5rem; border-radius: var(--radius-control); font-family: var(--font-sans); box-shadow: none; }
+
+@media (max-width: 639px) {
+  #root .jx-app-button { min-height: 2.75rem; }
+  #root .jx-app-select [role='listbox'] { max-width: calc(100vw - 2rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .jx-app-button,
+  #root .jx-app-card,
+  #root .jx-app-chip,
+  #root .jx-app-avatar,
+  #root .jx-app-avatar-group { animation: none !important; transition-duration: 0.01ms !important; }
+}

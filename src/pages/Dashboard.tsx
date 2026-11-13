@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Clock, Package, TrendingUp, Wallet } from 'lucide-react'
-import { JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { useStore } from '../store/store'
 import { dashboardKpis, daysInStock, forecast, monthlySeries, partStock } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { Alert, BarChart, Donut, KpiCard, Money, PageHeader, StatusChip } from '../components/ui'
 
+import {JXCard, JXSelect} from '../components/JXUI'
 const STATUS_COLORS: Record<string, string> = {
   Purchased: '#64748b', 'Awaiting pickup': '#f59e0b', 'In transit': '#0ea5e9', Received: '#10b981',
   Inspection: '#f59e0b', 'In reconditioning': '#f97316', Available: '#10b981', Reserved: '#4f46e5',

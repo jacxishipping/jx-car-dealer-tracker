@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { JXAlert, JXButton, JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { dealProfit, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
+import {JXAlert, JXButton, JXCard, JXSelect} from '../components/JXUI'
 const num = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0 }
 const vehLabel = (v: { stockNumber: string; year: number; make: string; model: string }) => `${v.stockNumber} — ${v.year} ${v.make} ${v.model}`
 

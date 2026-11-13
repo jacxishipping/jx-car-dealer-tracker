@@ -1,6 +1,7 @@
+import {JXButton, JXSelect} from '../components/JXUI'
 // Expenses — filterable expense ledger with direct/overhead totals and CSV export.
 import { useMemo, useState } from 'react'
-import { JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/store'

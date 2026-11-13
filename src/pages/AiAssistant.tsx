@@ -1,3 +1,4 @@
+import {JXAlert, JXButton, JXCard, JXChip} from '../components/JXUI'
 // AI Voice-to-Work assistant — deterministic text-command parser.
 //
 // There is NO AI backend in this build: commands are matched by a small
@@ -10,7 +11,7 @@
 // always stop at a confirm screen and must be completed in their module.
 import { useMemo, useState } from 'react'
 import { CheckCircle2, ImagePlus, Mic, RotateCcw, Send, ShieldAlert, Sparkles } from 'lucide-react'
-import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import * as serverApi from '../lib/api'

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { useSearchParams } from 'react-router-dom'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { LEAD_STAGES, fmtMoney, type LeadStage } from '../store/types'
 import { Alert, EmptyState, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
+import {JXButton, JXCard, JXChip, JXSelect} from '../components/JXUI'
 const today = new Date().toISOString().slice(0, 10)
 const isOverdue = (followUpDate: string, stage: LeadStage) =>
   followUpDate < today && stage !== 'Sold' && stage !== 'Lost'

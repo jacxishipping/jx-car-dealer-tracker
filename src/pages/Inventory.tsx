@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
-import { JXButton, JXButtonGroup, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import {JXButtonGroup} from '../components/JXUI'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import type { Vehicle, VehicleStatus } from '../store/types'
@@ -9,6 +9,7 @@ import { VEHICLE_STATUSES } from '../store/types'
 import { daysInStock } from '../store/engine'
 import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, inputCls, usePagination } from '../components/ui'
 
+import {JXButton, JXSelect} from '../components/JXUI'
 type SortKey = 'price' | 'date' | 'mileage'
 type InventoryView = { id: string; name: string; query: string; status: string; sortKey: SortKey; sortDir: 'asc' | 'desc' }
 const SAVED_VIEWS_KEY = 'jx-dealer-inventory-views-v1'

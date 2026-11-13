@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import { JXCard } from '@jacxishippingorg/jx-ui-react'
+
 import { useStore } from '../store/store'
 import { daysInStock, monthlySeries } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { BarChart, Donut, EmptyState, KpiCard, Money, PageHeader, TableScrollHint } from '../components/ui'
 
+import {JXCard} from '../components/JXUI'
 const DONUT_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#0ea5e9', '#f43f5e', '#8b5cf6', '#64748b']
 
 export default function Analytics() {

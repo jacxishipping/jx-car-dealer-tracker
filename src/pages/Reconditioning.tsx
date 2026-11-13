@@ -1,9 +1,10 @@
+import {JXButton, JXCard, JXProgress, JXSelect} from '../components/JXUI'
 // Reconditioning — recon jobs grouped by vehicle, with the vehicle's linked
 // expenses shown alongside each group. Jobs can be created and advanced
 // from this page via the store's addReconJob / updateReconJob actions;
 // costs are recorded as linked Direct expenses (recordExpense).
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard, JXProgress, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { Plus, Wrench } from 'lucide-react'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type ExpenseCategory, type ReconJob } from '../store/types'

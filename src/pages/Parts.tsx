@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { partStock, partValue } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, TableScrollHint, usePagination } from '../components/ui'
 
+import {JXButton, JXCard, JXSelect} from '../components/JXUI'
 export default function Parts() {
   const { state, receivePartBatch, allocatePart, addPart } = useStore()
   const { parts, partBatches, partMovements, partAllocations, vehicles } = state

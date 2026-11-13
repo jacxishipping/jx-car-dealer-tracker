@@ -1,12 +1,13 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { JXCard, JXProgress, JXSelect, JXTimeline } from '@jacxishippingorg/jx-ui-react'
+
 import { useStore } from '../store/store'
 import { VEHICLE_STATUSES, fmtMoney } from '../store/types'
 import type { VehicleStatus } from '../store/types'
 import { daysInStock, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
 import { EmptyState, Money, PageHeader, StatusChip } from '../components/ui'
 
+import {JXCard, JXProgress, JXSelect, JXTimeline} from '../components/JXUI'
 function Section({ title, kicker, children }: { title: string; kicker?: string; children: React.ReactNode }) {
   return (
       <JXCard title={title} kicker={kicker} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">

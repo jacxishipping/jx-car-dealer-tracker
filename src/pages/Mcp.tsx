@@ -1,3 +1,4 @@
+import {JXAlert, JXButton, JXCard, JXChip} from '../components/JXUI'
 // MCP integration — documentation + in-app tool registry.
 //
 // This page is NOT a live MCP server. It documents the tool surface the
@@ -5,7 +6,7 @@
 // that already implements the same logic in this build. A live MCP server
 // needs the production backend (PostgreSQL, real auth, server-side RBAC) —
 // see docs/ARCHITECTURE.md and docs/schema.sql.
-import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
+
 import { PageHeader, TableScrollHint } from '../components/ui'
 
 interface Tool {

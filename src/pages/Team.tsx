@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { JXAvatar, JXAvatarGroup, JXButton, JXSelect, JXSwitch, JXTimeline } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { ROLES, type Role } from '../store/types'
 import { Alert, EmptyState, Field, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
+import {JXAvatar, JXAvatarGroup, JXButton, JXSelect, JXSwitch, JXTimeline} from '../components/JXUI'
 // Read-only permission matrix — what each role is allowed to do in the app's design.
 // Enforced in the UI only (buttons hidden/disabled); there is no server to enforce it yet.
 const MATRIX: { capability: string; perms: Record<Role, boolean> }[] = [

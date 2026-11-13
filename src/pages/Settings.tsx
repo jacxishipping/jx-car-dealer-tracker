@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { JXButton, JXCard, JXSelect, JXSwitch } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { fmtMoney } from '../store/types'
 import { Alert, Field, PageHeader } from '../components/ui'
 
+import {JXButton, JXCard, JXSelect, JXSwitch} from '../components/JXUI'
 export default function Settings() {
   const { state, updateSettings, resetDemo, apiMode } = useStore()
   const [orgName, setOrgName] = useState(state.settings.orgName)

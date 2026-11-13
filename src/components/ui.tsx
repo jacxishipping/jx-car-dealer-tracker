@@ -1,3 +1,4 @@
+import {JXAlert, JXButton, JXCard, JXChip, JXSelect} from './JXUI'
 // Shared UI primitives. JXUI components are used where their real API fits
 // (verified against node_modules/@jacxishippingorg/jx-ui-react/dist-lib/types):
 //  JXCard {title, kicker, description, children}, JXButton {variant, size, color,
@@ -10,7 +11,7 @@
 // Tables, modals and charts below are local, styled to the JXUI language
 // (Indigo #4f46e5, light canvas #F8FAFC, white 16px cards, Plus Jakarta Sans).
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
-import { JXAlert, JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
+
 import { AppTextField } from './AppTextField'
 import { useFocusTrap } from './useFocusTrap'
 import { Download, SearchX, X } from 'lucide-react'

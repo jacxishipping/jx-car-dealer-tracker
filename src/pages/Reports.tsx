@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard } from '@jacxishippingorg/jx-ui-react'
+
 import { useStore } from '../store/store'
 import { accountBalance, daysInStock, partStock, partValue, totalCash, vehicleAllInCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { EmptyState, ExportButton, Field, inputCls, PageHeader, TableScrollHint } from '../components/ui'
 
+import {JXButton, JXCard} from '../components/JXUI'
 type Row = Record<string, string | number | null | undefined>
 
 const REPORTS = [
