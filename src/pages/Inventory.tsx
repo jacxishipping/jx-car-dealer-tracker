@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { JXButton, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXButton, JXButtonGroup, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import type { Vehicle, VehicleStatus } from '../store/types'
 import { VEHICLE_STATUSES } from '../store/types'
@@ -95,21 +96,6 @@ export default function Inventory() {
     if (res.id) navigate(`/inventory/${res.id}`)
   }
 
-  const sortButton = (key: SortKey, label: string) => (
-    <JXButton
-      variant={sortKey === key ? 'contained' : 'outlined'}
-      size="sm"
-      lockWidth={false}
-      onClick={() => {
-        if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-        else { setSortKey(key); setSortDir('desc') }
-        reset()
-      }}
-    >
-      {label} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-    </JXButton>
-  )
-
   return (
     <>
       <PageHeader
@@ -147,9 +133,21 @@ export default function Inventory() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Sort</span>
-          {sortButton('price', 'Price')}
-          {sortButton('date', 'Date')}
-          {sortButton('mileage', 'Mileage')}
+          <JXButtonGroup
+            ariaLabel="Sort vehicles by"
+            items={[{ id: 'date', label: 'Date' }, { id: 'price', label: 'Price' }, { id: 'mileage', label: 'Mileage' }]}
+            activeId={sortKey}
+            variant="segmented"
+            size="sm"
+            onChange={(id) => {
+              setSortKey(id as SortKey)
+              setSortDir('desc')
+              reset()
+            }}
+          />
+          <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setSortDir((dir) => dir === 'asc' ? 'desc' : 'asc'); reset() }}>
+            {sortDir === 'desc' ? (sortKey === 'date' ? 'Newest first ↓' : 'High to low ↓') : (sortKey === 'date' ? 'Oldest first ↑' : 'Low to high ↑')}
+          </JXButton>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { JXAvatar, JXButton, JXCard, JXSelect, JXSwitch, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXAvatar, JXAvatarGroup, JXButton, JXSelect, JXSwitch, JXTimeline } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { ROLES, type Role } from '../store/types'
 import { Alert, EmptyState, Field, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
@@ -57,7 +58,20 @@ export default function Team() {
         </div>
       )}
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Team ({state.team.length})</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Team ({state.team.length})</h2>
+        {state.team.length > 0 && (
+          <JXAvatarGroup
+            size="sm"
+            max={6}
+            items={state.team.map((member) => ({
+              name: member.name,
+              role: member.role,
+              status: member.active ? 'online' : 'offline',
+            }))}
+          />
+        )}
+      </div>
       {state.team.length === 0
         ? <EmptyState title="No team members" />
         : (
@@ -120,17 +134,13 @@ export default function Team() {
                 ? <EmptyState title="No audit events yet" />
                 : (
                   <>
-                    <div className="space-y-2">
-                      {auditPage.map((a) => (
-                          <JXCard key={a.id} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{a.action} <span className="font-normal text-slate-500 dark:text-slate-400">· {a.entityType} {a.entityId}</span></p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(a.at).toLocaleString()} · {a.actor}</p>
-                            </div>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{a.summary}</p>
-                          </JXCard>
-              ))}
-                        </div>
+                    <JXTimeline events={auditPage.map((a, index) => ({
+                      id: a.id,
+                      title: a.summary,
+                      timestamp: new Date(a.at).toLocaleString(),
+                      status: index === 0 ? 'active' : 'neutral',
+                      payload: `${a.action} · ${a.entityType} ${a.entityId} · ${a.actor}`,
+                    }))} />
             { auditControls }
           </>
         )}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { JXButton } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/store'
 import { fmtMoney, type Purchase } from '../store/types'
@@ -156,8 +157,7 @@ export default function Purchases() {
       {success && <div className="mb-4"><Alert severity="success" title="Purchase recorded" description={success} /></div>}
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <label htmlFor="purchases-search" className="sr-only">Search purchases by ref, seller, auction, stock number, VIN, or make</label>
-        <input id="purchases-search" aria-label="Search purchases by ref, seller, auction, stock number, VIN, or make" className={`${inputCls} max-w-sm`} placeholder="Search ref, seller, auction, stock no, VIN, make…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <JXTextField id="purchases-search" aria-label="Search purchases by ref, seller, auction, stock number, VIN, or make" className="jx-text-field max-w-sm" label="" placeholder="Search ref, seller, auction, stock no, VIN, make…" value={search} onChange={setSearch} />
       </div>
 
       {filtered.length === 0 ? (

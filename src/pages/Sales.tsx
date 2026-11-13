@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { JXAlert, JXButton, JXCard, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXAlert, JXButton, JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { dealProfit, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
 import { fmtMoney } from '../store/types'

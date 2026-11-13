@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXButton, JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { accountBalance, totalCash } from '../store/engine'
 import { fmtMoney, type Account } from '../store/types'

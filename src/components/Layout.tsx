@@ -5,11 +5,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  BarChart3, Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign,
-  FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon,
-  ShoppingCart, Sparkles, Sun, Truck, Users, Wallet, Wrench, X,
-} from 'lucide-react'
+  BarChart3, Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign, FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon, ShoppingCart, Sparkles, Sun, Truck, Users, Wallet, Wrench, X, } from 'lucide-react'
 import { JXAvatar, JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "./AppTextField"
 import { useStore } from '../store/store'
 import { ROLES } from '../store/types'
 
@@ -201,30 +199,30 @@ export default function Layout() {
             <Search className="h-5 w-5" />
           </button>
           <form className="relative hidden min-w-0 flex-1 sm:block" onSubmit={(e) => { e.preventDefault(); if (query.trim()) navigate(`/inventory?q=${encodeURIComponent(query.trim())}`) }}>
-            <label htmlFor="header-vehicle-search" className="sr-only">Search vehicles by VIN, stock number, make, or model</label>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-            <input
+            <JXTextField
               id="header-vehicle-search"
+              className="jx-text-field jx-global-search"
+              label=""
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
               placeholder="Search vehicles by VIN, stock no, make or model…"
               aria-label="Search vehicles by VIN, stock number, make, or model"
-              className="w-full max-w-md rounded-full border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-base md:text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/20"
             />
           </form>
           {showMobileSearch && (
             <form className="order-10 w-full sm:hidden" onSubmit={(e) => { e.preventDefault(); if (query.trim()) { navigate(`/inventory?q=${encodeURIComponent(query.trim())}`); setShowMobileSearch(false) } }}>
               <div className="relative">
-                <label htmlFor="mobile-header-vehicle-search" className="sr-only">Search vehicles by VIN, stock number, make, or model</label>
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                <input
+                <JXTextField
                   id="mobile-header-vehicle-search"
+                  className="jx-text-field jx-global-search"
+                  label=""
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={setQuery}
                   autoFocus
                   placeholder="Search vehicles by VIN, stock no, make or model…"
                   aria-label="Search vehicles by VIN, stock number, make, or model"
-                  className="w-full rounded-full border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-base md:text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/20"
                 />
               </div>
             </form>

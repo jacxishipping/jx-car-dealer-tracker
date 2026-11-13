@@ -3,7 +3,7 @@
 // from this page via the store's addReconJob / updateReconJob actions;
 // costs are recorded as linked Direct expenses (recordExpense).
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard } from '@jacxishippingorg/jx-ui-react'
+import { JXButton, JXCard, JXProgress, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { Plus, Wrench } from 'lucide-react'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type ExpenseCategory, type ReconJob } from '../store/types'
@@ -152,13 +152,7 @@ export default function Reconditioning() {
       {success && <div className="mb-4"><Alert severity="success" title="Done" description={success} /></div>}
 
       <div className="mb-4 flex flex-wrap gap-3">
-          <div>
-            <label htmlFor="recon-status-filter" className="sr-only">Filter by job status</label>
-            <select id="recon-status-filter" className={`${selectCls} w-full sm:w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by job status">
-              <option value="All">All statuses</option>
-              {JOB_STATUSES.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </div>
+          <JXSelect label="Filter by job status" className="jx-select-field jx-sr-label w-full sm:w-auto" value={statusFilter} onChange={setStatusFilter} options={[{ id: 'All', label: 'All statuses' }, ...JOB_STATUSES.map((status) => ({ id: status, label: status }))]} />
           <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewJob}>
             <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New job</span>
           </JXButton>
@@ -207,6 +201,7 @@ export default function Reconditioning() {
                               <p className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-white">
                                 <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" />{j.title}
                               </p>
+                              <JXProgress value={j.status === 'Done' ? 100 : j.status === 'In progress' ? 50 : 0} label={j.status} />
                               {j.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{j.notes}</p>}
                             </td>
                             <td className="px-3 py-2">{j.category}</td>

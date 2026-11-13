@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXCard, JXChip, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { LEAD_STAGES, fmtMoney, type LeadStage } from '../store/types'
 import { Alert, EmptyState, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'

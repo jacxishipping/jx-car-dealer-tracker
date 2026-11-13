@@ -4,6 +4,7 @@
 // page reloads so App renders the app shell with an authenticated store.
 import { useState, type FormEvent } from 'react'
 import { JXButton, JXCard } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "./AppTextField"
 import { Car, Eye, EyeOff } from 'lucide-react'
 import * as api from '../lib/api'
 import { Alert, Field, inputCls } from './ui'
@@ -99,15 +100,16 @@ export default function LoginScreen({ onAuthenticated }: { onAuthenticated?: () 
               </Field>
                 <Field label="Password" htmlFor="login-password" hint={mode === 'register' ? 'Minimum 8 characters' : undefined}>
                   <div className="relative">
-                    <input
+                    <JXTextField
                       id="login-password"
-                      className={`${inputCls} pr-12`}
+                      className="jx-text-field login-password-field"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={setPassword}
                       placeholder="••••••••"
                       autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                       disabled={loading}
+                      label=""
                     />
                     <button
                       type="button"

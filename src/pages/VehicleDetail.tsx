@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { JXCard, JXProgress, JXSelect, JXTimeline } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { VEHICLE_STATUSES, fmtMoney } from '../store/types'
 import type { VehicleStatus } from '../store/types'
@@ -57,6 +57,9 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
   const deals = state.deals.filter((d) => d.vehicleId === vehicle.id)
   const sales = state.sales.filter((s) => s.vehicleId === vehicle.id)
   const auditEvents = state.audit.filter((a) => a.entityId === vehicle.id)
+  const pipelineStatuses = ['Purchased', 'Awaiting pickup', 'In transit', 'Received', 'Inspection', 'In reconditioning', 'Available', 'Reserved', 'Sold']
+  const pipelineIndex = pipelineStatuses.indexOf(vehicle.status)
+  const pipelineProgress = pipelineIndex >= 0 ? ((pipelineIndex + 1) / pipelineStatuses.length) * 100 : 100
   const customerName = (cid: string) => state.customers.find((c) => c.id === cid)?.name ?? cid
   const partName = (pid: string) => state.parts.find((p) => p.id === pid)?.name ?? pid
 
@@ -92,6 +95,20 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                   </div>
                   {vehicle.notes && <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.notes}</p>}
                 </div>
+
+                <Section title="Vehicle pipeline" kicker="Lifecycle progress">
+                  <JXProgress
+                    value={pipelineProgress}
+                    label={pipelineIndex >= 0
+                      ? `${vehicle.status} · ${Math.round(pipelineProgress)}% through the standard pipeline`
+                      : `${vehicle.status} · terminal vehicle status`}
+                  />
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400" aria-label="Vehicle lifecycle stages">
+                    {pipelineStatuses.map((status, index) => (
+                      <span key={status} className={index <= pipelineIndex ? 'font-semibold text-indigo-700 dark:text-indigo-300' : ''}>{status}</span>
+                    ))}
+                  </div>
+                </Section>
 
                 <div className="grid gap-5 lg:grid-cols-2">
                   <Section title="Overview" kicker={vehicle.stockNumber}>
@@ -273,14 +290,13 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
 
         <Section title="Timeline" kicker={`${auditEvents.length} event${auditEvents.length === 1 ? '' : 's'}`}>
           {auditEvents.length === 0 ? <ListEmpty text="No audit events recorded for this vehicle." /> : (
-            <ol className="space-y-3 text-sm">
-              {auditEvents.map((a) => (
-                <li key={a.id} className="border-l-2 border-indigo-200 pl-3 dark:border-indigo-800">
-                  <p className="font-medium text-slate-900 dark:text-white">{a.summary}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{a.action} · {a.actor} · {new Date(a.at).toLocaleString('en-US')}</p>
-                </li>
-              ))}
-            </ol>
+            <JXTimeline events={[...auditEvents].reverse().map((a, index) => ({
+              id: a.id,
+              title: a.summary,
+              timestamp: new Date(a.at).toLocaleString('en-US'),
+              status: index === 0 ? 'active' as const : 'success' as const,
+              payload: `${a.action} · ${a.actor}`,
+            }))} />
           )}
         </Section>
       </div>

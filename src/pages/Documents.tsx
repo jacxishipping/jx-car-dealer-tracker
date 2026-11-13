@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { JXButton, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
+import { JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { ROLES, type DocRecord, type Role } from '../store/types'
 import { Alert, EmptyState, ExportButton, Field, inputCls, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'

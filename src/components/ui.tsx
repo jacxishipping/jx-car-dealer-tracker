@@ -9,8 +9,9 @@
 // shape — not a generic table), JXBadge (count badge, not a status pill).
 // Tables, modals and charts below are local, styled to the JXUI language
 // (Indigo #4f46e5, light canvas #F8FAFC, white 16px cards, Plus Jakarta Sans).
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { JXAlert, JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField } from './AppTextField'
 import { Download, SearchX, X } from 'lucide-react'
 import { fmtMoney } from '../store/types'
 import { downloadCsv } from '../lib/csv'
@@ -123,12 +124,56 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
 export function Field({ label, htmlFor, children, hint }: { label: string; htmlFor?: string; children: ReactNode; hint?: string }) {
   const rawId = useId()
   const targetId = htmlFor ?? `field-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const child = isValidElement<{ id?: string }>(children)
-    ? cloneElement(children, { id: children.props.id ?? targetId })
-    : children
+  let child = children
+  if (isValidElement(children) && children.type === 'input') {
+    const props = children.props as InputHTMLAttributes<HTMLInputElement>
+    const { onChange, className: _className, size: _inputSize, ...inputProps } = props
+    child = (
+      <AppTextField
+        {...inputProps}
+        id={props.id ?? targetId}
+        className="jx-text-field"
+        value={props.value === undefined ? undefined : String(props.value)}
+        defaultValue={props.defaultValue === undefined ? undefined : String(props.defaultValue)}
+        onChange={(value) => onChange?.({ target: { value } } as ChangeEvent<HTMLInputElement>)}
+      />
+    )
+  } else if (isValidElement(children) && children.type === 'select') {
+    const props = children.props as SelectHTMLAttributes<HTMLSelectElement> & { children?: ReactNode }
+    const optionLabel = (node: ReactNode): string => {
+      if (typeof node === 'string' || typeof node === 'number') return String(node)
+      if (Array.isArray(node)) return node.map(optionLabel).join('')
+      if (isValidElement<{ children?: ReactNode }>(node)) return optionLabel(node.props.children)
+      return ''
+    }
+    const options = Children.toArray(props.children).flatMap((option) => {
+      if (!isValidElement<{ value?: string | number; children?: ReactNode; disabled?: boolean }>(option) || option.type !== 'option') return []
+      const text = optionLabel(option.props.children)
+      return [{ id: String(option.props.value ?? text), label: text, disabled: option.props.disabled }]
+    })
+    const onChange = props.onChange
+    child = (
+      <JXSelect
+        label={label}
+        className="jx-select-field jx-field-select"
+        options={options}
+        value={props.value === undefined ? undefined : String(props.value)}
+        defaultValue={props.defaultValue === undefined ? undefined : String(props.defaultValue)}
+        disabled={props.disabled}
+        onChange={(value) => onChange?.({ target: { value } } as ChangeEvent<HTMLSelectElement>)}
+      />
+    )
+  } else if (isValidElement<{ label?: string }>(children) && children.type === JXSelect) {
+    child = cloneElement(children, { label })
+  } else if (isValidElement<{ id?: string }>(children)) {
+    child = cloneElement(children, { id: children.props.id ?? targetId })
+  }
+  const usesSelectLabel = isValidElement(children) && (children.type === 'select' || children.type === JXSelect)
   return (
     <div className="block">
-      <label htmlFor={targetId} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
+      {!usesSelectLabel && (
+        <label htmlFor={targetId} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
+      )}
       {child}
       {hint && <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{hint}</span>}
     </div>

@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle2, ImagePlus, Mic, RotateCcw, Send, ShieldAlert, Sparkles } from 'lucide-react'
 import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import * as serverApi from '../lib/api'
 import { daysInStock, vehicleAllInCost } from '../store/engine'
@@ -281,12 +282,12 @@ export default function AiAssistant() {
             <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
               <div className="p-5">
                   <div className="flex flex-wrap gap-2">
-                    <label htmlFor="ai-command-input" className="sr-only">Command</label>
-                    <input
+                    <JXTextField
                       id="ai-command-input"
-                      className={`${inputCls} min-w-0 flex-1`}
+                      className="jx-text-field min-w-0 flex-1"
+                      label=""
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
+                      onChange={setInput}
                       onKeyDown={(e) => { if (e.key === 'Enter' && input.trim()) runParse(input) }}
                       placeholder='Try: "Add a 2022 Honda Accord for $16,500"'
                       aria-label="Command"

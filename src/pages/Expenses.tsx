@@ -1,6 +1,7 @@
 // Expenses — filterable expense ledger with direct/overhead totals and CSV export.
 import { useMemo, useState } from 'react'
 import { JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type Expense, type ExpenseCategory } from '../store/types'
@@ -123,32 +124,11 @@ export default function Expenses() {
             value={catFilter} onChange={setCatFilter} placeholder="Category" searchable
           />
         </div>
-        <div>
-          <label htmlFor="expenses-kind-filter" className="sr-only">Direct or overhead</label>
-          <select id="expenses-kind-filter" className={`${selectCls} w-full sm:w-auto`} value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)} aria-label="Direct or overhead">
-            <option value="All">Direct + Overhead</option>
-            <option value="Direct">Direct only</option>
-            <option value="Overhead">Overhead only</option>
-          </select>
-        </div>
-        <div className="max-w-full">
-          <label htmlFor="expenses-vehicle-filter" className="sr-only">Filter by vehicle</label>
-          <select id="expenses-vehicle-filter" className={`${selectCls} w-full sm:w-auto max-w-full`} value={vehicleFilter} onChange={(e) => setVehicleFilter(e.target.value)} aria-label="Filter by vehicle">
-            <option value="All">All vehicles</option>
-            <option value="overhead">General overhead (no vehicle)</option>
-            {state.vehicles.map((v) => <option key={v.id} value={v.id}>{v.stockNumber} — {v.year} {v.make} {v.model}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="expenses-sort-filter" className="sr-only">Sort by date</label>
-          <select id="expenses-sort-filter" className={`${selectCls} w-full sm:w-auto`} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort by date">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-        </div>
+        <div className="w-full sm:w-auto"><JXSelect label="Direct or overhead" className="jx-select-field jx-sr-label w-full sm:w-auto" value={kindFilter} onChange={(value) => setKindFilter(value as typeof kindFilter)} options={[{ id: 'All', label: 'Direct + Overhead' }, { id: 'Direct', label: 'Direct only' }, { id: 'Overhead', label: 'Overhead only' }]} /></div>
+        <div className="max-w-full"><JXSelect label="Filter by vehicle" className="jx-select-field jx-sr-label w-full sm:w-auto max-w-full" value={vehicleFilter} onChange={setVehicleFilter} options={[{ id: 'All', label: 'All vehicles' }, { id: 'overhead', label: 'General overhead (no vehicle)' }, ...state.vehicles.map((v) => ({ id: v.id, label: `${v.stockNumber} — ${v.year} ${v.make} ${v.model}` }))]} searchable /></div>
+        <div className="w-full sm:w-auto"><JXSelect label="Sort by date" className="jx-select-field jx-sr-label w-full sm:w-auto" value={sort} onChange={(value) => setSort(value as typeof sort)} options={[{ id: 'newest', label: 'Newest first' }, { id: 'oldest', label: 'Oldest first' }]} /></div>
         <div className="w-full sm:max-w-xs flex-1 min-w-52">
-          <label htmlFor="expenses-search" className="sr-only">Search expenses by description, vendor, or invoice</label>
-          <input id="expenses-search" aria-label="Search expenses by description, vendor, or invoice" className={inputCls} placeholder="Search description, vendor, invoice…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <JXTextField id="expenses-search" aria-label="Search expenses by description, vendor, or invoice" className="jx-text-field" label="" placeholder="Search description, vendor, invoice…" value={search} onChange={setSearch} />
         </div>
       </div>
 

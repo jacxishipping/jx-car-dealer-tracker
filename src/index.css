@@ -131,6 +131,26 @@ input[aria-label='Filter select options']:focus {
   color: var(--color-text-muted);
 }
 
+.jx-global-search {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.jx-global-search input {
+  min-height: 40px;
+  border-radius: 9999px;
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+}
+
+.dark .jx-global-search input {
+  background: #1e293b;
+}
+
+.login-password-field input {
+  padding-right: 3rem;
+}
+
 .dark .jx-field-select label {
   color: #94a3b8;
 }

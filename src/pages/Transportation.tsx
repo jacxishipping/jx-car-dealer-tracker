@@ -124,20 +124,8 @@ export default function Transportation() {
       {success && <div className="mb-4"><Alert severity="success" title="Transport updated" description={success} /></div>}
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <div>
-          <label htmlFor="transport-status-filter" className="sr-only">Filter by status</label>
-          <select id="transport-status-filter" className={`${selectCls} w-full sm:w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
-            <option>All</option>
-            {TRANSPORT_STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="transport-carrier-filter" className="sr-only">Filter by carrier</label>
-          <select id="transport-carrier-filter" className={`${selectCls} w-full sm:w-auto`} value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)} aria-label="Filter by carrier">
-            <option>All</option>
-            {carriers.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </div>
+        <div className="w-full sm:w-auto"><JXSelect label="Filter by status" className="jx-select-field jx-sr-label w-full sm:w-auto" value={statusFilter} onChange={setStatusFilter} options={[{ id: 'All', label: 'All statuses' }, ...TRANSPORT_STATUSES.map((status) => ({ id: status, label: status }))]} /></div>
+        <div className="w-full sm:w-auto"><JXSelect label="Filter by carrier" className="jx-select-field jx-sr-label w-full sm:w-auto" value={carrierFilter} onChange={setCarrierFilter} options={[{ id: 'All', label: 'All carriers' }, ...carriers.map((carrier) => ({ id: carrier, label: carrier }))]} searchable /></div>
       </div>
 
       {filtered.length === 0 ? (
