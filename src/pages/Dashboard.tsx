@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Clock, Package, TrendingUp, Wallet } from 'lucide-react'
-import { JXCard } from '@jacxishippingorg/jx-ui-react'
+import { JXCard, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { dashboardKpis, daysInStock, forecast, monthlySeries, partStock } from '../store/engine'
 import { fmtMoney } from '../store/types'
@@ -15,6 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const { state } = useStore()
+  const [alertFilter, setAlertFilter] = useState('All')
   const kpis = dashboardKpis(state)
   const series = monthlySeries(state, 6)
   const fc = forecast(state)
@@ -37,6 +38,11 @@ export default function Dashboard() {
   const overdueFollowUps = state.leads.filter(
     (l) => l.followUpDate < today && !['Sold', 'Lost'].includes(l.stage),
   )
+  const visibleAlerts = (alertFilter === 'All' ? aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length
+    : alertFilter === 'Aged stock' ? aged.length
+      : alertFilter === 'Unpaid transport' ? unpaidTransport.length
+        : alertFilter === 'Receivables' ? unpaidReceivables.length
+          : alertFilter === 'Low parts' ? lowStockParts.length : overdueFollowUps.length)
 
   return (
     <>
@@ -101,11 +107,15 @@ export default function Dashboard() {
 
                   <div className="mt-5 grid gap-5 lg:grid-cols-2">
                       <JXCard title="Operational alerts" kicker="Needs attention" description={`Target hold is ${state.settings.targetHoldDays} days. ${aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} open alerts.`} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Showing {visibleAlerts} of {aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} items</p>
+                          <div className="w-full sm:w-52"><JXSelect label="Filter alerts" className="jx-select-field jx-field-select" value={alertFilter} onChange={setAlertFilter} options={['All', 'Aged stock', 'Unpaid transport', 'Receivables', 'Low parts', 'Overdue follow-ups'].map((filter) => ({ id: filter, label: filter }))} /></div>
+                        </div>
                         <ul className="space-y-3 text-sm">
-                          {aged.length === 0 && unpaidTransport.length === 0 && unpaidReceivables.length === 0 && lowStockParts.length === 0 && overdueFollowUps.length === 0 && (
-                            <li className="text-slate-500 dark:text-slate-400">No open alerts — nothing aged, unpaid, low on stock, or overdue.</li>
+                          {visibleAlerts === 0 && (
+                            <li className="text-slate-500 dark:text-slate-400">No open alerts in this view.</li>
                           )}
-                          {aged.map((v) => (
+                          {(alertFilter === 'All' || alertFilter === 'Aged stock') && aged.map((v) => (
                             <li key={`aged-${v.id}`} className="flex items-start gap-2">
                               <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                               <span>
@@ -114,33 +124,33 @@ export default function Dashboard() {
                               </span>
                             </li>
                           ))}
-                          {unpaidTransport.map((t) => {
+                          {(alertFilter === 'All' || alertFilter === 'Unpaid transport') && unpaidTransport.map((t) => {
                             const v = state.vehicles.find((x) => x.id === t.vehicleId)
                             return (
                               <li key={`tr-${t.id}`} className="flex items-start gap-2">
                                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                                <span>Unpaid transport — {t.carrier} ({t.invoiceRef || 'no invoice ref'}) for {v ? `${v.stockNumber} ${v.year} ${v.make} ${v.model}` : t.vehicleId}: <Money value={t.price} /> · {t.paymentStatus}.</span>
+                                <Link to="/transportation" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Unpaid transport — {t.carrier} ({t.invoiceRef || 'no invoice ref'}) for {v ? `${v.stockNumber} ${v.year} ${v.make} ${v.model}` : t.vehicleId}: <Money value={t.price} /> · {t.paymentStatus}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Open transportation →</span></Link>
                               </li>
                             )
                           })}
-                          {unpaidReceivables.map((r) => (
+                          {(alertFilter === 'All' || alertFilter === 'Receivables') && unpaidReceivables.map((r) => (
                             <li key={`rc-${r.id}`} className="flex items-start gap-2">
                               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                              <span>Unpaid {r.kind.toLowerCase()} balance — {r.entityName} ({r.reference}): <Money value={r.total - r.paid} /> outstanding, due {r.dueDate} · {r.status}.</span>
+                              <Link to="/finance" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Unpaid {r.kind.toLowerCase()} balance — {r.entityName} ({r.reference}): <Money value={r.total - r.paid} /> outstanding, due {r.dueDate} · {r.status}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Open finance →</span></Link>
                             </li>
                           ))}
-                          {lowStockParts.map((p) => (
+                          {(alertFilter === 'All' || alertFilter === 'Low parts') && lowStockParts.map((p) => (
                             <li key={`ps-${p.id}`} className="flex items-start gap-2">
                               <Package className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                              <span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span>
+                              <Link to="/parts" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Open parts →</span></Link>
                             </li>
                           ))}
-                          {overdueFollowUps.map((l) => {
+                          {(alertFilter === 'All' || alertFilter === 'Overdue follow-ups') && overdueFollowUps.map((l) => {
                             const c = state.customers.find((x) => x.id === l.customerId)
                             return (
                               <li key={`fu-${l.id}`} className="flex items-start gap-2">
                                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                                <span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span>
+                                <Link to="/crm?followUp=overdue" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Review follow-up →</span></Link>
                               </li>
                             )
                           })}

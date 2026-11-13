@@ -9,7 +9,7 @@
 // shape — not a generic table), JXBadge (count badge, not a status pill).
 // Tables, modals and charts below are local, styled to the JXUI language
 // (Indigo #4f46e5, light canvas #F8FAFC, white 16px cards, Plus Jakarta Sans).
-import { Children, cloneElement, isValidElement, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { JXAlert, JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { AppTextField } from './AppTextField'
 import { useFocusTrap } from './useFocusTrap'
@@ -79,9 +79,25 @@ export function Alert({ severity, title, description }: { severity: 'warning' | 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(dialogRef, true, onClose)
+  const initialValues = useRef<string[] | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  useEffect(() => {
+    const fields = dialogRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')
+    initialValues.current = fields ? Array.from(fields, (field) => field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio') ? String(field.checked) : field.value) : []
+  }, [])
+  const hasChanges = () => {
+    const fields = dialogRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')
+    if (!fields || !initialValues.current) return false
+    const current = Array.from(fields, (field) => field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio') ? String(field.checked) : field.value)
+    return current.length !== initialValues.current.length || current.some((value, index) => value !== initialValues.current?.[index])
+  }
+  const requestClose = () => {
+    if (hasChanges()) { setConfirmDiscard(true); return }
+    onClose()
+  }
+  useFocusTrap(dialogRef, true, requestClose)
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6" onClick={requestClose}>
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -90,12 +106,20 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
         aria-labelledby={titleId}
         className={`max-h-dvh w-full overflow-y-auto rounded-t-[var(--radius-card)] bg-white shadow-xl focus:outline-none dark:bg-[var(--color-surface-dark)] ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'} sm:max-h-[90vh] sm:rounded-[var(--radius-card)]`}
         onClick={(e) => e.stopPropagation()}
+        onClickCapture={(event) => {
+          const target = event.target
+          if (!(target instanceof Element)) return
+          const button = target.closest('button')
+          if (button && /^(cancel|close)$/i.test((button.getAttribute('aria-label') ?? button.textContent ?? '').trim())) {
+            if (hasChanges()) { event.preventDefault(); event.stopPropagation(); setConfirmDiscard(true) }
+          }
+        }}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             aria-label="Close"
           >
@@ -103,6 +127,15 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
           </button>
         </div>
         <div className="p-5">{children}</div>
+        {confirmDiscard && (
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-amber-200 bg-amber-50 px-5 py-3 dark:border-amber-900 dark:bg-amber-950" role="alert">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">Discard your unsaved changes?</p>
+            <div className="flex gap-2">
+              <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => setConfirmDiscard(false)}>Keep editing</JXButton>
+              <JXButton variant="contained" color="error" size="sm" lockWidth={false} onClick={onClose}>Discard</JXButton>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

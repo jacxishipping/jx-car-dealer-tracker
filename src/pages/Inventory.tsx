@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { JXButton, JXButtonGroup, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import type { Vehicle, VehicleStatus } from '../store/types'
 import { VEHICLE_STATUSES } from '../store/types'
 import { daysInStock } from '../store/engine'
-import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, TableScrollHint, inputCls, usePagination } from '../components/ui'
+import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, inputCls, usePagination } from '../components/ui'
 
 type SortKey = 'price' | 'date' | 'mileage'
+type InventoryView = { id: string; name: string; query: string; status: string; sortKey: SortKey; sortDir: 'asc' | 'desc' }
+const SAVED_VIEWS_KEY = 'jx-dealer-inventory-views-v1'
 
 const emptyForm = {
   stockNumber: '', vin: '', year: String(new Date().getFullYear()), make: '', model: '', trim: '',
@@ -31,12 +33,23 @@ export default function Inventory() {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
+  const [viewName, setViewName] = useState('')
+  const [activeView, setActiveView] = useState('preset:all')
+  const [savedViews, setSavedViews] = useState<InventoryView[]>(() => {
+    try {
+      const value: unknown = JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) ?? '[]')
+      return Array.isArray(value) ? value.filter((view): view is InventoryView => Boolean(view && typeof view.id === 'string' && typeof view.name === 'string' && typeof view.query === 'string' && typeof view.status === 'string' && ['price', 'date', 'mileage'].includes(view.sortKey) && ['asc', 'desc'].includes(view.sortDir))) : []
+    } catch { return [] }
+  })
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     let list = state.vehicles.filter((v) => {
       const matchesQuery = !q || [v.vin, v.stockNumber, v.make, v.model].some((f) => f.toLowerCase().includes(q))
-      const matchesStatus = statusFilter === 'All' || v.status === statusFilter
+      const matchesStatus = statusFilter === 'All'
+        || (statusFilter === 'Aged stock' && !['Sold', 'Wholesale', 'Returned'].includes(v.status) && daysInStock(v) > state.settings.targetHoldDays)
+        || v.status === statusFilter
       return matchesQuery && matchesStatus
     })
     list = [...list].sort((a, b) => {
@@ -46,9 +59,48 @@ export default function Inventory() {
       return dir * a.purchaseDate.localeCompare(b.purchaseDate)
     })
     return list
-  }, [state.vehicles, query, statusFilter, sortKey, sortDir])
+  }, [state.vehicles, state.settings.targetHoldDays, query, statusFilter, sortKey, sortDir])
 
   const { pageItems, controls, reset } = usePagination(filtered, 10)
+  const selectedVehicles = state.vehicles.filter((vehicle) => selectedIds.includes(vehicle.id))
+
+  useEffect(() => {
+    try { localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(savedViews)) } catch { /* Saved views are optional when browser storage is unavailable. */ }
+  }, [savedViews])
+
+  const applyView = (id: string) => {
+    setActiveView(id)
+    const view = savedViews.find((item) => item.id === id)
+    if (view) {
+      setQuery(view.query); setStatusFilter(view.status); setSortKey(view.sortKey); setSortDir(view.sortDir)
+    } else if (id === 'preset:all') {
+      setQuery(''); setStatusFilter('All'); setSortKey('date'); setSortDir('desc')
+    } else if (id.startsWith('preset:')) {
+      setQuery(''); setSortKey('date'); setSortDir('desc')
+      setStatusFilter(id === 'preset:available' ? 'Available' : id === 'preset:recon' ? 'In reconditioning' : id === 'preset:aged' ? 'Aged stock' : 'All')
+    }
+    reset(); setSelectedIds([])
+  }
+
+  const saveCurrentView = () => {
+    const name = viewName.trim()
+    if (!name) return
+    const id = `view-${Date.now()}`
+    setSavedViews((views) => [...views.filter((view) => view.name.toLowerCase() !== name.toLowerCase()), {
+      id, name, query, status: statusFilter, sortKey, sortDir,
+    }])
+    setActiveView(id)
+    setViewName('')
+  }
+
+  const agedViewCount = state.vehicles.filter((vehicle) => !['Sold', 'Wholesale', 'Returned'].includes(vehicle.status) && daysInStock(vehicle) > state.settings.targetHoldDays).length
+  const viewOptions = [
+    { id: 'preset:all', label: 'All inventory' },
+    { id: 'preset:available', label: 'Available' },
+    { id: 'preset:aged', label: `Aged stock (${agedViewCount})` },
+    { id: 'preset:recon', label: 'Needs reconditioning' },
+    ...savedViews.map((view) => ({ id: view.id, label: `Saved: ${view.name}` })),
+  ]
 
   const set = (key: keyof typeof emptyForm, val: string) => setForm((f) => ({ ...f, [key]: val }))
 
@@ -118,17 +170,29 @@ export default function Inventory() {
         }
       />
 
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div className="w-full sm:w-60">
+          <JXSelect label="Inventory view" className="jx-select-field jx-field-select" options={viewOptions} value={activeView} placeholder="Choose a saved view" onChange={applyView} />
+        </div>
+        <div className="flex min-w-56 flex-1 gap-2">
+          <label className="sr-only" htmlFor="inventory-view-name">Name this view</label>
+          <JXTextField id="inventory-view-name" className="jx-text-field" label="" value={viewName} onChange={setViewName} placeholder="Name current view…" />
+          <JXButton variant="outlined" size="sm" lockWidth={false} disabled={!viewName.trim()} onClick={saveCurrentView}>Save view</JXButton>
+          {activeView.startsWith('view-') && <JXButton variant="text" size="sm" lockWidth={false} aria-label="Delete selected saved view" onClick={() => { setSavedViews((views) => views.filter((view) => view.id !== activeView)); setActiveView('preset:all') }}><Trash2 className="h-4 w-4" /><span className="sr-only">Delete view</span></JXButton>}
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); reset() }} placeholder="e.g. CDT-101, Toyota…" />
+          <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); setActiveView(''); reset(); setSelectedIds([]) }} placeholder="e.g. CDT-101, Toyota…" />
         </div>
         <div className="w-full sm:w-48">
           <JXSelect
             label="Status"
             className="jx-select-field jx-field-select"
-            options={[{ id: 'All', label: 'All statuses' }, ...VEHICLE_STATUSES.map((s) => ({ id: s, label: s }))]}
+            options={[{ id: 'All', label: 'All statuses' }, { id: 'Aged stock', label: `Aged stock (${agedViewCount})` }, ...VEHICLE_STATUSES.map((s) => ({ id: s, label: s }))]}
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); reset() }}
+            onChange={(v) => { setStatusFilter(v); setActiveView(''); reset(); setSelectedIds([]) }}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -142,10 +206,11 @@ export default function Inventory() {
             onChange={(id) => {
               setSortKey(id as SortKey)
               setSortDir('desc')
+              setActiveView('')
               reset()
             }}
           />
-          <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setSortDir((dir) => dir === 'asc' ? 'desc' : 'asc'); reset() }}>
+          <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setSortDir((dir) => dir === 'asc' ? 'desc' : 'asc'); setActiveView(''); reset() }}>
             {sortDir === 'desc' ? (sortKey === 'date' ? 'Newest first ↓' : 'High to low ↓') : (sortKey === 'date' ? 'Oldest first ↑' : 'Low to high ↑')}
           </JXButton>
         </div>
@@ -155,15 +220,22 @@ export default function Inventory() {
         <EmptyState
           title="No vehicles match"
           detail={state.vehicles.length === 0 ? 'No vehicles in the tracker yet — add your first vehicle.' : 'Try a different search or status filter.'}
-          action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setQuery(''); setStatusFilter('All'); reset() }}>Clear filters</JXButton>}
+          action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setQuery(''); setStatusFilter('All'); setActiveView('preset:all'); setSelectedIds([]); reset() }}>Clear filters</JXButton>}
         />
       ) : (
         <>
-          <TableScrollHint />
-          <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <input type="checkbox" aria-label="Select all vehicles on this page" checked={pageItems.length > 0 && pageItems.every((vehicle) => selectedIds.includes(vehicle.id))} onChange={(event) => setSelectedIds((ids) => event.target.checked ? [...new Set([...ids, ...pageItems.map((vehicle) => vehicle.id)])] : ids.filter((id) => !pageItems.some((vehicle) => vehicle.id === id)))} />
+              Select this page
+            </label>
+            {selectedVehicles.length > 0 && <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-slate-600 dark:text-slate-300">{selectedVehicles.length} selected</span><ExportButton filename="selected-vehicles.csv" label="Export selected" rows={selectedVehicles.map((v) => ({ stockNumber: v.stockNumber, vin: v.vin, year: v.year, make: v.make, model: v.model, status: v.status, mileage: v.mileage, askingPrice: v.askingPrice }))} /><JXButton variant="text" size="sm" lockWidth={false} onClick={() => setSelectedIds([])}>Clear selection</JXButton></div>}
+          </div>
+          <div className="hidden overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)] xl:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th className="px-3 py-3"><span className="sr-only">Select</span></th>
                   <th className="px-4 py-3">Stock</th>
                   <th className="px-4 py-3">Vehicle</th>
                   <th className="px-4 py-3">VIN</th>
@@ -179,6 +251,7 @@ export default function Inventory() {
                     key={v.id}
                     className="border-b border-slate-100 hover:bg-indigo-50/60 last:border-0 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
+                    <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${v.stockNumber}`} checked={selectedIds.includes(v.id)} onChange={(event) => setSelectedIds((ids) => event.target.checked ? [...ids, v.id] : ids.filter((id) => id !== v.id))} /></td>
                     <td className="px-4 py-3 font-mono font-semibold"><Link to={`/inventory/${v.id}`} className="rounded-sm text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{v.stockNumber}</Link></td>
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-900 dark:text-white">{v.year} {v.make} {v.model}</span>
@@ -194,6 +267,18 @@ export default function Inventory() {
               </tbody>
             </table>
             <div className="px-4 py-3">{controls}</div>
+          </div>
+          <div className="space-y-2 xl:hidden">
+            {pageItems.map((vehicle) => (
+              <article key={vehicle.id} className="rounded-[var(--radius-card)] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><Link to={`/inventory/${vehicle.id}`} className="font-mono text-sm font-semibold text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300">{vehicle.stockNumber}</Link><p className="mt-0.5 truncate font-medium text-slate-900 dark:text-white">{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}</p><p className="truncate text-xs text-slate-500 dark:text-slate-400">VIN {vehicle.vin}</p></div>
+                  <label className="flex min-h-11 min-w-11 items-center justify-center"><input type="checkbox" aria-label={`Select ${vehicle.stockNumber}`} checked={selectedIds.includes(vehicle.id)} onChange={(event) => setSelectedIds((ids) => event.target.checked ? [...ids, vehicle.id] : ids.filter((id) => id !== vehicle.id))} /></label>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-sm dark:border-slate-700"><StatusChip value={vehicle.status} /><span className="font-mono font-semibold"><Money value={vehicle.askingPrice} /></span><span className="text-xs text-slate-500 dark:text-slate-400">{vehicle.mileage.toLocaleString('en-US')} mi · {daysInStock(vehicle)} days</span></div>
+              </article>
+            ))}
+            <div className="px-1">{controls}</div>
           </div>
           </>
       )}

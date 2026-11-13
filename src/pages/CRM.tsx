@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
+import { useSearchParams } from 'react-router-dom'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { LEAD_STAGES, fmtMoney, type LeadStage } from '../store/types'
@@ -11,12 +12,16 @@ const isOverdue = (followUpDate: string, stage: LeadStage) =>
 
 export default function CRM() {
   const { state, addCustomer, moveLead, addInteraction, addOffer } = useStore()
+  const [searchParams] = useSearchParams()
   const { customers, leads, interactions, offers, vehicles, currentUser } = state
   const [search, setSearch] = useState('')
   const [salesFilter, setSalesFilter] = useState('All')
+  const [followUpFilter, setFollowUpFilter] = useState(searchParams.get('followUp') === 'overdue' ? 'Overdue' : 'All')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [showNew, setShowNew] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [undoMove, setUndoMove] = useState<{ leadId: string; previousStage: LeadStage } | null>(null)
 
   // New customer form
   const [name, setName] = useState('')
@@ -54,6 +59,13 @@ export default function CRM() {
   const detailLeads = detailCustomer ? leads.filter((l) => l.customerId === detailCustomer.id) : []
   const overdueCount = leads.filter((l) => isOverdue(l.followUpDate, l.stage)).length
   const activeLeads = leads.filter((l) => l.stage !== 'Sold' && l.stage !== 'Lost').length
+  const followUpLeads = leads.filter((lead) => {
+    if (lead.stage === 'Sold' || lead.stage === 'Lost') return false
+    if (followUpFilter === 'Overdue') return lead.followUpDate < today
+    if (followUpFilter === 'Due today') return lead.followUpDate === today
+    if (followUpFilter === 'Upcoming') return lead.followUpDate > today
+    return true
+  })
 
   const submitCustomer = () => {
     if (!name.trim()) { setFormError('Name is required.'); return }
@@ -63,12 +75,16 @@ export default function CRM() {
       notes: notes.trim(), interestedVehicleIds: [],
     })
     setSelectedCustomerId(id); setShowNew(false)
+    setUndoMove(null)
+    setFeedback('Customer added successfully.')
     setName(''); setPhone(''); setEmail(''); setAddress(''); setBudget(''); setNotes(''); setFormError('')
   }
 
   const logInteraction = () => {
     if (!detailCustomer || !ixNotes.trim()) return
     addInteraction(detailCustomer.id, ixType, ixNotes.trim())
+    setUndoMove(null)
+    setFeedback(`${ixType} interaction logged for ${detailCustomer.name}.`)
     setIxNotes('')
   }
 
@@ -78,6 +94,8 @@ export default function CRM() {
     const amt = parseFloat(offerAmount)
     if (!Number.isFinite(amt) || amt <= 0) { setOfferError('Offer amount must be greater than zero.'); return }
     addOffer(offerVehicleId, detailCustomer.id, amt)
+    setUndoMove(null)
+    setFeedback(`Offer added for ${detailCustomer.name}.`)
     setOfferAmount(''); setOfferVehicleId(''); setOfferError('')
   }
 
@@ -87,6 +105,8 @@ export default function CRM() {
     const idx = LEAD_STAGES.indexOf(lead.stage) + dir
     if (idx < 0 || idx >= LEAD_STAGES.length) return
     moveLead(leadId, LEAD_STAGES[idx])
+    setUndoMove({ leadId, previousStage: lead.stage })
+    setFeedback(`Lead moved to ${LEAD_STAGES[idx]}.`)
   }
 
   return (
@@ -96,6 +116,7 @@ export default function CRM() {
         subtitle="Customers, leads and follow-ups — one record per customer, shared with deals and sales."
         actions={[<JXButton key="new" variant="contained" size="sm" onClick={() => { setFormError(''); setShowNew(true) }}>+ New customer</JXButton>]}
       />
+      {feedback && <div role="status" aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"><span>{feedback}</span>{undoMove && <JXButton variant="text" size="sm" lockWidth={false} onClick={() => { moveLead(undoMove.leadId, undoMove.previousStage); setFeedback(`Lead restored to ${undoMove.previousStage}.`); setUndoMove(null) }}>Undo</JXButton>}</div>}
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Customers" value={String(customers.length)} sub={`${salespeople.length} salespeople`} />
@@ -122,7 +143,7 @@ export default function CRM() {
           ) : (
           <>
             <TableScrollHint />
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   <th className="py-2 pr-2">Customer</th><th className="py-2 pr-2">Contact</th><th className="py-2 pr-2">Budget</th><th className="py-2 pr-2">Source</th><th className="py-2 pr-2">Salesperson</th><th className="py-2" />
@@ -141,6 +162,14 @@ export default function CRM() {
                 </tbody>
               </table>
             </div>
+            <div className="space-y-2 lg:hidden">
+              {pageItems.map((customer) => (
+                <article key={customer.id} className={`rounded-[var(--radius-control)] border p-3 ${selectedCustomerId === customer.id && !selectedLead ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]'}`}>
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-semibold text-slate-900 dark:text-white">{customer.name}</p><p className="truncate text-xs text-slate-500 dark:text-slate-400">{customer.phone || customer.email || 'No contact details'}</p></div><JXButton variant="text" size="sm" lockWidth={false} onClick={() => { setSelectedCustomerId(customer.id); setSelectedLeadId(null) }}>View</JXButton></div>
+                  <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400"><span>Budget <Money value={customer.budget} /></span><span>{customer.salesperson}</span><span>{customer.leadSource}</span></div>
+                </article>
+              ))}
+            </div>
           </>
           )}
           {controls}
@@ -148,10 +177,10 @@ export default function CRM() {
 
         {/* Lead pipeline kanban (plain Tailwind columns — no JXUI kanban component exists for this) */}
         <div className="mt-5">
-          <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Lead pipeline</h2>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-900 dark:text-white">Lead pipeline</h2><p className="text-xs text-slate-500 dark:text-slate-400">{followUpLeads.length} active leads · {overdueCount} overdue follow-ups</p></div><div className="w-full sm:w-56"><JXSelect label="Follow-up view" className="jx-select-field jx-field-select" value={followUpFilter} onChange={setFollowUpFilter} options={['All', 'Due today', 'Overdue', 'Upcoming'].map((filter) => ({ id: filter, label: filter }))} /></div></div>
           <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 xl:grid-cols-6">
             {LEAD_STAGES.map((stage) => {
-              const stageLeads = leads.filter((l) => l.stage === stage)
+              const stageLeads = followUpLeads.filter((l) => l.stage === stage)
               return (
               <div key={stage} className="w-[260px] shrink-0 snap-start rounded-[var(--radius-card)] border border-slate-200 bg-slate-50 p-3 md:w-auto dark:border-slate-700 dark:bg-slate-900/60">
                 <div className="mb-2 flex items-center justify-between">

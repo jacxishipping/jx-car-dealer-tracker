@@ -6,7 +6,7 @@ import { fmtMoney } from '../store/types'
 import { Alert, Field, PageHeader } from '../components/ui'
 
 export default function Settings() {
-  const { state, updateSettings, resetDemo } = useStore()
+  const { state, updateSettings, resetDemo, apiMode } = useStore()
   const [orgName, setOrgName] = useState(state.settings.orgName)
   const [currency, setCurrency] = useState(state.settings.currency)
   const [overhead, setOverhead] = useState(String(state.settings.overheadPerVehicle))
@@ -47,7 +47,7 @@ export default function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Organisation profile, costing policy, theme and demo-data controls." />
+      <PageHeader title="Settings" subtitle={apiMode ? 'Organisation profile, costing policy, theme and connected workspace.' : 'Organisation profile, costing policy, theme and demo-data controls.'} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <JXCard title="Organisation profile" kicker="Identity" description="Shown in the sidebar and used across the app."
@@ -124,12 +124,19 @@ export default function Settings() {
             </JXCard>
           </div>
 
-          <JXCard title="Data & honesty" kicker="What this build is — and is not" description="Read before relying on anything here for real business."
+          <JXCard title="Data & availability" kicker={apiMode ? 'Connected workspace' : 'Demo workspace'} description="Understand where records are stored and which integrations are active."
         className="mt-6 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
             <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
-              <li><strong className="text-slate-900 dark:text-white">localStorage persistence:</strong> all data lives in your browser's localStorage (key <code className="font-mono text-xs">jx-dealer-tracker-v1</code>). It survives reloads on this browser only — clear site data and it is gone. There is no server copy and no sync between devices.</li>
-              <li><strong className="text-slate-900 dark:text-white">Demo seed data:</strong> the vehicles, customers, sales, accounts and documents are invented demo records (labelled DEMO in the sidebar), not a real dealership's books. The reset button above restores them.</li>
-              <li><strong className="text-slate-900 dark:text-white">Not in this build:</strong> no Postgres or any other database; no real authentication (the role switcher in the header just changes a label); no server-side role enforcement — role gating here is UI-level only; no object storage, so documents are metadata records with no file bytes; no live MCP server connection; and no voice/OCR features — the AI assistant page is a separate placeholder.</li>
+              {apiMode ? (
+                <li><strong className="text-slate-900 dark:text-white">Connected API:</strong> dealership records are loaded from and saved to the configured backend. Data retention, backups, and account permissions follow that deployment&apos;s configuration.</li>
+              ) : (
+                <>
+                  <li><strong className="text-slate-900 dark:text-white">Browser-only demo data:</strong> records are stored in this browser&apos;s localStorage and do not sync to other devices. Clearing site data removes local changes.</li>
+                  <li><strong className="text-slate-900 dark:text-white">Invented seed records:</strong> the vehicles, customers, sales, accounts, and documents are demo examples, not a real dealership&apos;s books. Reset restores the original sample data.</li>
+                </>
+              )}
+              <li><strong className="text-slate-900 dark:text-white">Integrations:</strong> document entries store metadata only (no uploaded file bytes); MCP is not connected to a live server. The assistant can parse typed commands, but receipt photos are not processed with OCR and voice input depends on browser support.</li>
+              {!apiMode && <li><strong className="text-slate-900 dark:text-white">Demo roles:</strong> the header role switcher is a local preview and does not provide server-side access control.</li>}
               <li><strong className="text-slate-900 dark:text-white">Money movement:</strong> every balance change goes through the store (recordPayment, transfer, recordExpense, finalizeSale) and writes a journal entry. Balances are always computed from opening balance + signed transactions, never stored.</li>
             </ul>
           </JXCard>
