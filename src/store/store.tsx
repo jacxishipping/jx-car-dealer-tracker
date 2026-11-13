@@ -5,8 +5,8 @@
 // can never change without a ledger entry.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
-  AppState, Customer, Deal, DocRecord, Expense, FinancialTransaction,
-  JournalEntry, Lead, LeadStage, PartAllocation, Purchase, ReconJob, Role, Settings,
+  Account, AppState, Customer, Deal, DocRecord, Expense, FinancialTransaction,
+  JournalEntry, Lead, LeadStage, Part, PartAllocation, Purchase, ReconJob, Role, Settings,
   TeamMember, TransportOrder, Vehicle,
 } from './types'
 import { money, uid } from './types'
@@ -54,6 +54,7 @@ export interface StoreApi {
   addReconJob: (j: Omit<ReconJob, 'id'>) => void
   updateReconJob: (id: string, patch: Partial<ReconJob>) => void
   // Parts (FIFO)
+  addPart: (part: Omit<Part, 'id'>) => { ok: boolean; error?: string; id?: string }
   allocatePart: (partId: string, vehicleId: string, qty: number) => { ok: boolean; error?: string; cost?: number }
   receivePartBatch: (partId: string, qty: number, unitPrice: number, invoice: string) => void
   // CRM / sales
@@ -66,11 +67,18 @@ export interface StoreApi {
   finalizeSale: (dealId: string) => { ok: boolean; error?: string; saleRef?: string }
   recordPayment: (receivableId: string, amount: number, accountId: string) => { ok: boolean; error?: string }
   transfer: (fromAccountId: string, toAccountId: string, amount: number, note: string) => { ok: boolean; error?: string }
+  addAccount: (account: Omit<Account, 'id'>) => { ok: boolean; error?: string; id?: string }
   // Docs / team
   addDocument: (d: Omit<DocRecord, 'id' | 'uploadedAt' | 'uploadedBy'>) => void
   addTeamMember: (m: Omit<TeamMember, 'id'>) => void
   setMemberActive: (id: string, active: boolean) => void
   markNotificationRead: (id: string) => void
+  // Platform / API mode
+  apiMode: boolean
+  logout: () => void
+  lastError: string | null
+  clearError: () => void
+  reloadFromServer: () => void
 }
 
 const StoreCtx = createContext<StoreApi | null>(null)
@@ -87,10 +95,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // error are rendered by the provider itself instead of being exposed.
   const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [apiError, setApiError] = useState('')
+  const [lastError, setLastError] = useState<string | null>(null)
   // Client-generated ids returned optimistically by addCustomer, mapped to
   // the server ids once the POST resolves, so a chained createDeal in the
   // same submit can use the real customer id (see the API overrides below).
   const pendingIds = useRef(new Map<string, Promise<string>>())
+
+  const handleLogout = useCallback(() => {
+    void serverApi.logout().finally(() => {
+      window.location.reload()
+    })
+  }, [])
 
   // Full snapshot reload from the server (single source of truth).
   const reloadFromServer = useCallback(() => {
@@ -176,6 +191,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             if (p.paymentStatus === 'Partial') {
               next = { ...next, receivables: [...next.receivables, { id: uid('rc'), kind: 'Vendor', entityName: p.seller, reference: ref, total, paid, dueDate: p.purchaseDate, status: 'Partial' }] }
             }
+          } else {
+            const je: JournalEntry = {
+              id: uid('j'),
+              ref: `JE-${String(s.journal.length + 1).padStart(4, '0')}`,
+              date: today(),
+              memo: `Purchase ${vehicle.stockNumber} (${ref})`,
+              lines: [
+                { account: 'Vehicle Inventory', debit: total, credit: 0 },
+                { account: 'Accounts Payable', debit: 0, credit: total },
+              ],
+              reversedBy: null,
+              reversed: false,
+            }
+            next = {
+              ...next,
+              journal: [...next.journal, je],
+              receivables: [
+                ...next.receivables,
+                { id: uid('rc'), kind: 'Vendor', entityName: p.seller, reference: ref, total, paid: 0, dueDate: p.purchaseDate, status: 'Open' },
+              ],
+            }
           }
           return audit(next, 'PURCHASE_RECORDED', 'Purchase', purchaseId,
             `Purchase ${ref} recorded: ${vehicle.year} ${vehicle.make} ${vehicle.model} for ${money(total)}. Vehicle ${vehicle.stockNumber} created.`)
@@ -233,6 +269,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         reconJobs: s.reconJobs.map((j) => j.id === id ? { ...j, ...patch } : j),
       })),
+
+      addPart: (part) => {
+        const sku = part.sku.trim()
+        const name = part.name.trim()
+        if (!sku || !name) return { ok: false, error: 'SKU and part name are required.' }
+        if (state.parts.some((p) => p.sku.toLowerCase() === sku.toLowerCase())) {
+          return { ok: false, error: `A part with SKU ${sku} already exists.` }
+        }
+        const id = uid('part')
+        setState((s) => audit(
+          { ...s, parts: [...s.parts, { ...part, id, sku, name }] },
+          'PART_CREATED', 'Part', id, `Part ${name} (${sku}) added to catalog.`,
+        ))
+        return { ok: true, id }
+      },
 
       allocatePart: (partId, vehicleId, qty) => {
         try {
@@ -342,16 +393,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!rec) return { ok: false, error: 'Balance not found.' }
         if (amount <= 0) return { ok: false, error: 'Amount must be positive.' }
         if (amount > money(rec.total - rec.paid)) return { ok: false, error: `Amount exceeds the outstanding balance of ${money(rec.total - rec.paid)}.` }
+        const isCustomer = rec.kind === 'Customer'
         setState((s) => {
-          const txn: FinancialTransaction = { id: uid('tx'), accountId, type: 'Customer payment', amount, category: 'Receivables', reference: rec.reference, date: today(), note: `Payment from ${rec.entityName}` }
-          const je: JournalEntry = { id: uid('j'), ref: `JE-${String(s.journal.length + 1).padStart(4, '0')}`, date: today(), memo: `Payment ${rec.reference}`, lines: [{ account: 'Operating Bank', debit: amount, credit: 0 }, { account: 'Accounts Receivable', debit: 0, credit: amount }], reversedBy: null, reversed: false }
+          const acctName = s.accounts.find((a) => a.id === accountId)?.name ?? 'Operating Bank'
+          const txn: FinancialTransaction = {
+            id: uid('tx'),
+            accountId,
+            type: isCustomer ? 'Customer payment' : 'Vendor payment',
+            amount: isCustomer ? amount : -amount,
+            category: 'Receivables',
+            reference: rec.reference,
+            date: today(),
+            note: `${isCustomer ? 'Payment from' : 'Payment to'} ${rec.entityName}`,
+          }
+          const je: JournalEntry = {
+            id: uid('j'),
+            ref: `JE-${String(s.journal.length + 1).padStart(4, '0')}`,
+            date: today(),
+            memo: `Payment ${rec.reference}`,
+            lines: isCustomer
+              ? [
+                  { account: acctName, debit: amount, credit: 0 },
+                  { account: 'Accounts Receivable', debit: 0, credit: amount },
+                ]
+              : [
+                  { account: 'Accounts Payable', debit: amount, credit: 0 },
+                  { account: acctName, debit: 0, credit: amount },
+                ],
+            reversedBy: null,
+            reversed: false,
+          }
           const next: AppState = {
             ...s,
             receivables: s.receivables.map((r) => r.id === receivableId ? { ...r, paid: money(r.paid + amount), status: money(r.paid + amount) >= r.total ? 'Paid' as const : 'Partial' as const } : r),
             transactions: [...s.transactions, txn],
             journal: [...s.journal, je],
           }
-          return audit(next, 'PAYMENT_RECORDED', 'Receivable', receivableId, `Payment of ${money(amount)} recorded for ${rec.reference}.`)
+          return audit(next, 'PAYMENT_RECORDED', 'Receivable', receivableId, `Payment of ${money(amount)} ${isCustomer ? 'received for' : 'paid on'} ${rec.reference}.`)
         })
         return { ok: true }
       },
@@ -374,6 +452,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true }
       },
 
+      addAccount: (account) => {
+        const name = account.name.trim()
+        if (!name) return { ok: false, error: 'Account name is required.' }
+        const id = uid('acc')
+        setState((s) => audit(
+          { ...s, accounts: [...s.accounts, { ...account, id, name }] },
+          'ACCOUNT_CREATED', 'Account', id, `Account "${name}" (${account.type}) created.`,
+        ))
+        return { ok: true, id }
+      },
+
       addDocument: (d) => setState((s) => ({
         ...s,
         documents: [{ ...d, id: uid('doc'), uploadedAt: today(), uploadedBy: s.currentUser }, ...s.documents],
@@ -382,6 +471,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addTeamMember: (m) => setState((s) => ({ ...s, team: [...s.team, { ...m, id: uid('tm') }] })),
       setMemberActive: (id, active) => setState((s) => ({ ...s, team: s.team.map((m) => m.id === id ? { ...m, active } : m) })),
       markNotificationRead: (id) => setState((s) => ({ ...s, notifications: s.notifications.map((n) => n.id === id ? { ...n, read: true } : n) })),
+      apiMode,
+      logout: handleLogout,
+      lastError,
+      clearError: () => setLastError(null),
+      reloadFromServer,
     }
 
     if (!apiMode) return local
@@ -401,7 +495,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // A future change that lets pages await these calls can return the
     // server's own result (and its real ids) instead.
     const fire = (p: Promise<unknown>) => {
-      p.then(() => reloadFromServer()).catch((err) => console.error('API mutation failed:', err))
+      setLastError(null)
+      p.then(() => reloadFromServer()).catch((err: unknown) => {
+        console.error('API mutation failed:', err)
+        setLastError(err instanceof Error ? err.message : 'Server request failed')
+        reloadFromServer()
+      })
     }
 
     return {
@@ -440,6 +539,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       addReconJob: (j) => { fire(serverApi.addReconJob(j)) },
       updateReconJob: (id, patch) => { fire(serverApi.updateReconJob(id, patch)) },
+
+      addPart: (part) => {
+        const sku = part.sku.trim()
+        const name = part.name.trim()
+        if (!sku || !name) return { ok: false, error: 'SKU and part name are required.' }
+        if (state.parts.some((p) => p.sku.toLowerCase() === sku.toLowerCase())) {
+          return { ok: false, error: `A part with SKU ${sku} already exists.` }
+        }
+        fire(serverApi.addPart({ ...part, sku, name }))
+        return { ok: true }
+      },
 
       allocatePart: (partId, vehicleId, qty) => {
         try {
@@ -511,13 +621,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true }
       },
 
+      addAccount: (account) => {
+        const name = account.name.trim()
+        if (!name) return { ok: false, error: 'Account name is required.' }
+        fire(serverApi.addAccount({ ...account, name }))
+        return { ok: true }
+      },
+
       addDocument: (d) => { fire(serverApi.addDocument(d)) },
 
       addTeamMember: (m) => { fire(serverApi.addTeamMember(m)) },
       setMemberActive: (id, active) => { fire(serverApi.setMemberActive(id, active)) },
       markNotificationRead: (id) => { fire(serverApi.markNotificationRead(id)) },
     }
-  }, [state, reloadFromServer])
+  }, [state, reloadFromServer, lastError, handleLogout])
 
   if (apiMode && getToken() && apiStatus === 'loading') {
     return (

@@ -12,6 +12,7 @@ import { useMemo, useState } from 'react'
 import { CheckCircle2, ImagePlus, Mic, RotateCcw, Send, ShieldAlert, Sparkles } from 'lucide-react'
 import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
+import * as serverApi from '../lib/api'
 import { daysInStock, vehicleAllInCost } from '../store/engine'
 import { fmtMoney, type ExpenseCategory, type Vehicle } from '../store/types'
 import { Alert, Field, inputCls, PageHeader, StatusChip } from '../components/ui'
@@ -112,9 +113,10 @@ function resolveVehicle(vehicles: Vehicle[], ref: string): Vehicle | undefined {
 }
 
 export default function AiAssistant() {
-  const { state, addVehicle, recordExpense } = useStore()
+  const { state, addVehicle, recordExpense, apiMode, reloadFromServer } = useStore()
   const [input, setInput] = useState('')
   const [parsed, setParsed] = useState<Parsed | null>(null)
+  const [opId, setOpId] = useState<string | null>(null)
   const [raw, setRaw] = useState('')
   const [voiceNote, setVoiceNote] = useState('')
   const [photoNote, setPhotoNote] = useState('')
@@ -134,12 +136,18 @@ export default function AiAssistant() {
     setRaw(text)
     setResult('')
     setVoiceNote('')
+    setOpId(null)
     const p = parseCommand(text)
     setParsed(p)
     if (p.kind === 'create_vehicle') {
       setStockNumber(nextStock)
       setVin('')
       setAskingPrice(String(p.price))
+    }
+    if (apiMode) {
+      serverApi.proposeAiOperation(text)
+        .then((res) => setOpId(res.operation.id))
+        .catch((err) => console.error('AI operation log failed:', err))
     }
   }
 
@@ -157,6 +165,28 @@ export default function AiAssistant() {
     if (parsed.kind === 'create_vehicle') {
       if (vin.trim().length < 11) {
         setResult('A VIN is required before confirming — enter the vehicle VIN (11–17 characters). The assistant never invents a VIN.')
+        return
+      }
+      if (apiMode && opId) {
+        const cleanVin = vin.trim().toUpperCase()
+        if (state.vehicles.some((x) => x.vin.toUpperCase() === cleanVin)) {
+          setResult(`A vehicle with VIN ${cleanVin} already exists.`)
+          return
+        }
+        serverApi.confirmAiOperation(opId, {
+          confirm: true,
+          vin: cleanVin,
+          stockNumber: stockNumber.trim() || nextStock,
+          askingPrice: Number(askingPrice) || parsed.price,
+        })
+          .then((res) => {
+            reloadFromServer()
+            setOpId(null)
+            finish(res.operation.summary || `Vehicle created: ${stockNumber.trim() || nextStock} — ${parsed.year} ${parsed.make} ${parsed.model} for ${fmtMoney(parsed.price)}. An audit entry was written.`)
+          })
+          .catch((err: unknown) => {
+            setResult(err instanceof Error ? err.message : 'Could not confirm AI operation.')
+          })
         return
       }
       const res = addVehicle({
@@ -180,6 +210,18 @@ export default function AiAssistant() {
       const vehicle = resolveVehicle(state.vehicles, ref)
       if (!vehicle) { setResult(`Could not find a vehicle matching "${ref}". Check the stock number or make and try again — nothing was recorded.`); return }
       const category: ExpenseCategory = isTransport ? 'Transportation' : parsed.category
+      if (apiMode && opId) {
+        serverApi.confirmAiOperation(opId, { confirm: true })
+          .then((res) => {
+            reloadFromServer()
+            setOpId(null)
+            finish(res.operation.summary || `${category} expense of ${fmtMoney(parsed.amount)} recorded for ${vehicle.stockNumber} (${vehicle.year} ${vehicle.make} ${vehicle.model}).`)
+          })
+          .catch((err: unknown) => {
+            setResult(err instanceof Error ? err.message : 'Could not confirm AI operation.')
+          })
+        return
+      }
       const description = isTransport
         ? `Transport — ${vehicle.stockNumber}`
         : `${category} — ${vehicle.stockNumber}`
@@ -193,6 +235,10 @@ export default function AiAssistant() {
       return
     }
     if (parsed.kind === 'sensitive') {
+      if (apiMode && opId) {
+        void serverApi.confirmAiOperation(opId, { confirm: true }).catch(() => {})
+        setOpId(null)
+      }
       // Deliberately NOT executed: the confirm screen is the end of the road
       // for money-moving and destructive operations in this build.
       finish(`Not executed. "${parsed.action}" is a sensitive operation — sales, purchases, payments, refunds and deletions are never executed from a text command. Complete it in the Sales, Purchases or Finance module.`)
@@ -343,7 +389,14 @@ export default function AiAssistant() {
                     <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />
                       {parsed.kind === 'sensitive' ? 'Confirm — review only, do not execute' : 'Confirm & execute'}</span>
                   </JXButton>
-                  <JXButton variant="outlined" onClick={() => { setParsed(null); setResult('Cancelled — nothing was executed.') }}>Cancel</JXButton>
+                  <JXButton variant="outlined" onClick={() => {
+                    if (apiMode && opId) {
+                      void serverApi.confirmAiOperation(opId, { confirm: false }).catch(() => {})
+                      setOpId(null)
+                    }
+                    setParsed(null)
+                    setResult('Cancelled — nothing was executed.')
+                  }}>Cancel</JXButton>
                 </div>
                 <p className="mt-2 flex items-center gap-1 text-xs text-slate-400"><ShieldAlert className="h-3.5 w-3.5" /> Executing writes an audit entry under your name ({state.currentUser}).</p>
               </div>

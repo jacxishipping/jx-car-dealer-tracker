@@ -6,8 +6,8 @@
 // Tokens are stored in localStorage under 'jx-dealer-token' /
 // 'jx-dealer-refresh'. No credential value is ever logged or printed.
 import type {
-  AppState, Customer, Deal, DocRecord, Expense, Lead, LeadStage,
-  Purchase, ReconJob, Settings, TeamMember, TransportOrder, Vehicle,
+  Account, AppState, Customer, Deal, DocRecord, Expense, Lead, LeadStage,
+  Part, Purchase, ReconJob, Settings, TeamMember, TransportOrder, Vehicle,
 } from '../store/types'
 
 export const API_MODE = Boolean(import.meta.env.VITE_API_URL)
@@ -69,7 +69,7 @@ export type ApiState = AppState & {
 }
 
 interface ErrorBody {
-  error?: string
+  error?: string | { message?: string; code?: string }
   message?: string
 }
 
@@ -81,7 +81,11 @@ async function parseBody<T>(res: Response): Promise<T> {
 
 async function throwForStatus(res: Response): Promise<never> {
   const body = await parseBody<ErrorBody>(res).catch(() => ({} as ErrorBody))
-  const message = body.error || body.message || `Request failed (${res.status})`
+  const errField = body.error
+  const message =
+    (typeof errField === 'string' ? errField : errField?.message) ||
+    body.message ||
+    `Request failed (${res.status})`
   throw new Error(message)
 }
 
@@ -215,6 +219,10 @@ export function updateReconJob(id: string, patchBody: Partial<ReconJob>): Promis
   return patch<ReconJob>(`/api/recon/${id}`, patchBody)
 }
 
+export function addPart(part: Omit<Part, 'id'>): Promise<Part> {
+  return post<Part>('/api/parts', part)
+}
+
 export function receivePartBatch(
   partId: string, qty: number, unitPrice: number, invoice: string,
 ): Promise<{ id: string }> {
@@ -234,7 +242,8 @@ export function addCustomer(c: Omit<Customer, 'id'>): Promise<Customer> {
 export function addInteraction(
   customerId: string, type: 'Call' | 'Email' | 'WhatsApp' | 'Visit' | 'Test drive', notes: string,
 ): Promise<{ id: string }> {
-  return post<{ id: string }>(`/api/customers/${customerId}/interactions`, { type, notes })
+  const date = new Date().toISOString().slice(0, 10)
+  return post<{ id: string }>(`/api/customers/${customerId}/interactions`, { type, notes, date })
 }
 
 export function addLead(l: Omit<Lead, 'id' | 'createdAt'>): Promise<Lead> {
@@ -246,7 +255,8 @@ export function moveLead(leadId: string, stage: LeadStage): Promise<Lead> {
 }
 
 export function addOffer(vehicleId: string, customerId: string, amount: number): Promise<{ id: string }> {
-  return post<{ id: string }>('/api/offers', { vehicleId, customerId, amount })
+  const date = new Date().toISOString().slice(0, 10)
+  return post<{ id: string }>('/api/offers', { vehicleId, customerId, amount, date })
 }
 
 export function createDeal(
@@ -289,4 +299,31 @@ export function markNotificationRead(id: string): Promise<{ id: string }> {
 
 export function updateSettings(patchBody: Partial<Settings>): Promise<Settings> {
   return patch<Settings>('/api/settings', patchBody)
+}
+
+export function addAccount(account: Omit<Account, 'id'>): Promise<Account> {
+  return post<Account>('/api/accounts', account)
+}
+
+export interface AiOperationDto {
+  id: string
+  command: string
+  parsedKind: string
+  parsedPayload: Record<string, unknown>
+  status: string
+  summary: string
+  sensitive: boolean
+}
+
+export function proposeAiOperation(
+  command: string,
+): Promise<{ operation: AiOperationDto; result?: Record<string, unknown> }> {
+  return post<{ operation: AiOperationDto; result?: Record<string, unknown> }>('/api/ai/operations', { command })
+}
+
+export function confirmAiOperation(
+  id: string,
+  body: { confirm: boolean; vin?: string; stockNumber?: string; askingPrice?: number },
+): Promise<{ operation: AiOperationDto }> {
+  return post<{ operation: AiOperationDto }>(`/api/ai/operations/${id}/confirm`, body)
 }

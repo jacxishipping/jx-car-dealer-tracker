@@ -35,6 +35,16 @@ describe('FIFO (fifoConsume)', () => {
     expect(slices[0].batchId).toBe('b1');
   });
 
+  it('orders by createdAt before id when purchaseDate ties and createdAt is provided', () => {
+    const tied = [
+      { id: 'uuid-a', partId: 'p1', qtyRemaining: 5, unitPrice: 60, purchaseDate: '2026-01-01', createdAt: 2 },
+      { id: 'uuid-z', partId: 'p1', qtyRemaining: 5, unitPrice: 50, purchaseDate: '2026-01-01', createdAt: 1 },
+    ];
+    const { slices, totalCost } = fifoConsume(tied, 'p1', 5);
+    expect(slices[0].batchId).toBe('uuid-z');
+    expect(totalCost).toBe(250);
+  });
+
   it('throws on insufficient stock', () => {
     expect(() => fifoConsume(batches, 'p1', 21)).toThrow('Insufficient stock: 20 available, 21 requested');
   });

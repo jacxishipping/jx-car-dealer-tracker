@@ -20,4 +20,11 @@ CREATE TABLE IF NOT EXISTS dealer.offers (
 );
 CREATE INDEX IF NOT EXISTS idx_offers_vehicle ON dealer.offers (vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_offers_customer ON dealer.offers (customer_id);
+
+INSERT INTO dealer.permissions (code, description) VALUES
+  ('finance.write', 'Create financial accounts and transfers'),
+  ('team.manage', 'Invite and activate/deactivate team members'),
+  ('settings.write', 'Update organization settings'),
+  ('ai.execute', 'Create and confirm AI operations')
+ON CONFLICT (code) DO NOTHING;
 `;

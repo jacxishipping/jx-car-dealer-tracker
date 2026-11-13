@@ -130,17 +130,17 @@ sellable statuses) enforced in transactions; `localStorage` is replaced by
 the API, and the seed becomes an optional demo-data loader.
 
 Frontend wiring for that target is done: `src/lib/api.ts` implements the
-contract (auth under `/auth/*`, resources under `/api/*`, Bearer token with
+contract (auth under `/api/auth/*`, resources under `/api/*`, Bearer token with
 one auto-refresh on 401), `src/store/store.tsx` runs in API mode when
 `VITE_API_URL` is set, and `src/App.tsx` gates on the login screen when
-there is no token. The `server/` implementation itself is a separate build;
-the frontend is wired against the specified contract, not verified against
-a running server. Deployment of both halves is in `docs/DEPLOYMENT.md`.
+there is no token. The `server/` backend implements the API and PostgreSQL
+migrations in `server/src/migrate.ts`. Deployment of both halves is in `docs/DEPLOYMENT.md`.
 
 ## 5. PostgreSQL schema — `docs/schema.sql`
 
 One schema (`dealer`), multi-tenant by `organization_id` on every
-tenant-owned row. 36 tables covering the brief's list:
+tenant-owned row. 39 tables in `docs/schema.sql` plus `dealer.offers`
+in `server/src/lib/schema-extras.ts` (40 tables total):
 
 - **Tenancy / identity:** `organizations`, `users`, `roles`, `permissions`,
   `role_permissions`, `organization_members`.
@@ -180,9 +180,9 @@ Key decisions (all visible in the file):
 - `deals.sale_id` is added by `ALTER TABLE` after `sales` exists (forward
   foreign key); the file avoids extensions entirely (`gen_random_uuid()` is
   built into PostgreSQL 13+, email uniqueness is a `lower(email)` index).
-- The file is **not executed anywhere in this build** — no live database is
-  available. It is syntax-checked by inspection; run it against an empty
-  local PostgreSQL before relying on it.
+- Executed idempotently via `server/src/migrate.ts` (together with
+  `server/src/lib/schema-extras.ts`) against PostgreSQL (`40` tables
+  verified in schema `dealer`; see `docs/DEPLOYMENT.md`).
 
 ## 6. Module implementation plan
 

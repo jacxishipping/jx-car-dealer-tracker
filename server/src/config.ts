@@ -1,21 +1,25 @@
 // Environment parsing. Read live from process.env (getters, not a snapshot)
 // so tests can set env vars before first use. There are NO defaults for
 // secrets: JWT_SECRET must be set or auth fails loudly at startup/use.
-// DATABASE_URL falls back to POSTGRES_URL, then POSTGRES_PRISMA_URL.
+// DATABASE_URL falls back to POSTGRES_URL, PRISMA_DATABASE_URL, DATABASE_URL_POOLED, then POSTGRES_PRISMA_URL.
 // No credential is ever logged.
+import path from 'node:path';
 import dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 export const config = {
   get port(): number {
     return Number(process.env.PORT ?? 3001);
   },
-  /** Primary connection string, with the two documented fallbacks. */
+  /** Primary connection string, with the documented fallbacks. */
   get databaseUrl(): string {
     return (
       process.env.DATABASE_URL ??
       process.env.POSTGRES_URL ??
+      process.env.PRISMA_DATABASE_URL ??
+      process.env.DATABASE_URL_POOLED ??
       process.env.POSTGRES_PRISMA_URL ??
       ''
     );
@@ -53,7 +57,7 @@ export function requireJwtSecret(): string {
 export function requireDatabaseUrl(): string {
   if (!config.databaseUrl) {
     throw new Error(
-      'No database connection string is set. Set DATABASE_URL (or POSTGRES_URL / POSTGRES_PRISMA_URL) in the environment.',
+      'No database connection string is set. Set DATABASE_URL (or POSTGRES_URL / PRISMA_DATABASE_URL / DATABASE_URL_POOLED / POSTGRES_PRISMA_URL) in the environment.',
     );
   }
   return config.databaseUrl;

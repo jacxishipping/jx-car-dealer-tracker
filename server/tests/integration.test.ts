@@ -14,9 +14,9 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { config } from '../src/config';
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.POSTGRES_PRISMA_URL ?? '';
+const DATABASE_URL = config.databaseUrl;
 const hasDb = Boolean(DATABASE_URL);
 
 if (!hasDb) {

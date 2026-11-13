@@ -236,6 +236,22 @@ export async function recordPurchaseTx(
         [orgId, input.seller, ref, total, paid, input.purchaseDate],
       );
     }
+  } else {
+    const stockNumber = vehicle.stock_number as string;
+    await createJournalEntry(client, orgId, {
+      memo: `Purchase ${stockNumber} (${ref})`,
+      date: today(),
+      lines: [
+        { account: 'Vehicle Inventory', debit: total, credit: 0 },
+        { account: 'Accounts Payable', debit: 0, credit: total },
+      ],
+    });
+    await client.query(
+      `INSERT INTO dealer.receivables
+         (organization_id, kind, entity_name, reference, total, paid, due_date, status)
+       VALUES ($1, 'Vendor', $2, $3, $4, 0, $5, 'Open')`,
+      [orgId, input.seller, ref, total, input.purchaseDate],
+    );
   }
 
   await insertAudit(client, {
@@ -481,10 +497,10 @@ export async function allocatePartTx(
   const batchesRes = await client.query(
     `SELECT id, part_id, qty_remaining, unit_price, purchase_date FROM dealer.part_batches
       WHERE organization_id = $1 AND part_id = $2 AND qty_remaining > 0 AND deleted_at IS NULL
-      ORDER BY purchase_date ASC, id ASC`,
+      ORDER BY purchase_date ASC, created_at ASC, id ASC`,
     [orgId, partId],
   );
-  const batches = batchesRes.rows.map((r) => ({
+  const batches = batchesRes.rows.map((r, idx) => ({
     id: r.id as string,
     partId: r.part_id as string,
     qtyRemaining: Number(r.qty_remaining),
@@ -493,6 +509,7 @@ export async function allocatePartTx(
       r.purchase_date instanceof Date
         ? (r.purchase_date as Date).toISOString().slice(0, 10)
         : String(r.purchase_date),
+    createdAt: idx,
   }));
   let consumed;
   try {

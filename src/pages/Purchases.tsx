@@ -102,7 +102,7 @@ export default function Purchases() {
       purchaseSource: f.source as 'Auction' | 'Wholesale' | 'Private seller' | 'Trade-in' | 'Other dealer',
       purchasePrice: price,
       auctionFees: num(f.auctionFees),
-      transportCost: num(f.transportEstimate),
+      transportCost: 0,
       askingPrice: f.askingPrice ? num(f.askingPrice) : Math.round(price * 1.25),
       minPrice: f.minPrice ? num(f.minPrice) : Math.round(price * 1.15),
       photos: [],

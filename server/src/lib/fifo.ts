@@ -9,8 +9,10 @@ export interface FifoBatchInput {
   partId: string;
   qtyRemaining: number;
   unitPrice: number;
-  /** ISO date string (YYYY-MM-DD). FIFO order is purchaseDate, then id. */
+  /** ISO date string (YYYY-MM-DD). FIFO order is purchaseDate, then createdAt (if set), then id. */
   purchaseDate: string;
+  /** Optional tie-breaker for same-day batches (epoch/order number or ISO timestamp). */
+  createdAt?: string | number;
 }
 
 export interface FifoSlice {
@@ -25,6 +27,12 @@ export interface FifoSlice {
  * Example from the spec: 10 @ $50 + 10 @ $60, consume 12 → $500 + $120 = $620.
  * Throws on insufficient stock or non-positive qty. Does NOT mutate.
  */
+function compareCreatedAt(a?: string | number, b?: string | number): number {
+  if (a === undefined || b === undefined || a === b) return 0;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b));
+}
+
 export function fifoConsume(
   batches: FifoBatchInput[],
   partId: string,
@@ -33,7 +41,12 @@ export function fifoConsume(
   if (qty <= 0) throw new Error('Quantity to consume must be positive');
   const open = batches
     .filter((b) => b.partId === partId && b.qtyRemaining > 0)
-    .sort((a, b) => a.purchaseDate.localeCompare(b.purchaseDate) || a.id.localeCompare(b.id));
+    .sort(
+      (a, b) =>
+        a.purchaseDate.localeCompare(b.purchaseDate) ||
+        compareCreatedAt(a.createdAt, b.createdAt) ||
+        a.id.localeCompare(b.id),
+    );
   const available = open.reduce((s, b) => s + b.qtyRemaining, 0);
   if (available < qty) {
     throw new Error(`Insufficient stock: ${available} available, ${qty} requested`);

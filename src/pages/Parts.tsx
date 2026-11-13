@@ -6,12 +6,22 @@ import { fmtMoney } from '../store/types'
 import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, usePagination } from '../components/ui'
 
 export default function Parts() {
-  const { state, receivePartBatch, allocatePart } = useStore()
+  const { state, receivePartBatch, allocatePart, addPart } = useStore()
   const { parts, partBatches, partMovements, partAllocations, vehicles } = state
   const [search, setSearch] = useState('')
   const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null)
   const [movementFilter, setMovementFilter] = useState('All')
   const [showReceive, setShowReceive] = useState(false)
+  const [showNewPart, setShowNewPart] = useState(false)
+
+  // New part form
+  const [newSku, setNewSku] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newManufacturer, setNewManufacturer] = useState('')
+  const [newSupplier, setNewSupplier] = useState('')
+  const [newMinStock, setNewMinStock] = useState('4')
+  const [newPartError, setNewPartError] = useState('')
+  const [newPartDone, setNewPartDone] = useState('')
 
   // Receive batch form
   const [recvPartId, setRecvPartId] = useState(parts[0]?.id ?? '')
@@ -73,6 +83,23 @@ export default function Parts() {
     if (res.ok) { setAllocQty(''); setSelectedPartId(allocPartId) }
   }
 
+  const submitNewPart = () => {
+    setNewPartError(''); setNewPartDone('')
+    const minStock = parseInt(newMinStock, 10)
+    if (!newSku.trim() || !newName.trim()) { setNewPartError('SKU and part name are required.'); return }
+    if (!Number.isFinite(minStock) || minStock < 0) { setNewPartError('Minimum stock must be 0 or more.'); return }
+    const res = addPart({
+      sku: newSku.trim(),
+      name: newName.trim(),
+      manufacturer: newManufacturer.trim() || '—',
+      supplier: newSupplier.trim() || '—',
+      minStock,
+    })
+    if (!res.ok) { setNewPartError(res.error ?? 'Could not add part.'); return }
+    setNewPartDone(`Part "${newName.trim()}" (${newSku.trim()}) added to catalog.`)
+    setNewSku(''); setNewName(''); setNewManufacturer(''); setNewSupplier(''); setNewMinStock('4')
+  }
+
   const allocPart = parts.find((p) => p.id === allocPartId)
   const allocStock = allocPart ? partStock(partBatches, allocPart.id) : 0
 
@@ -82,7 +109,8 @@ export default function Parts() {
         title="Parts &amp; Inventory"
         subtitle="FIFO stock: oldest batches are consumed first, so the cost of every allocation is the real batch cost."
         actions={[
-          <JXButton key="recv" variant="contained" size="sm" onClick={() => { setRecvError(''); setRecvDone(''); setShowReceive(true) }}>+ Receive batch</JXButton>,
+          <JXButton key="new" variant="outlined" size="sm" onClick={() => { setNewPartError(''); setNewPartDone(''); setShowNewPart(true) }}>+ New part</JXButton>,
+          <JXButton key="recv" variant="contained" size="sm" onClick={() => { if (!recvPartId && parts[0]) setRecvPartId(parts[0].id); setRecvError(''); setRecvDone(''); setShowReceive(true) }}>+ Receive batch</JXButton>,
           <ExportButton key="exp" filename="parts.csv" rows={parts.map((p) => ({ sku: p.sku, name: p.name, manufacturer: p.manufacturer, supplier: p.supplier, stock: partStock(partBatches, p.id), minStock: p.minStock, fifoValue: partValue(partBatches, p.id) }))} />,
         ]}
       />
@@ -267,6 +295,24 @@ export default function Parts() {
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <JXButton variant="outlined" onClick={() => setShowReceive(false)}>Close</JXButton>
             <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>
+          </div>
+        </Modal>
+      )}
+
+      {showNewPart && (
+        <Modal title="New part in catalog" onClose={() => setShowNewPart(false)}>
+          {newPartError && <div className="mb-3"><Alert severity="error" title="Check the form" description={newPartError} /></div>}
+          {newPartDone && <div className="mb-3"><Alert severity="success" title="Part added" description={newPartDone} /></div>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="SKU *"><JXTextField value={newSku} onChange={setNewSku} placeholder="e.g. BP-1001" /></Field>
+            <Field label="Part name *"><JXTextField value={newName} onChange={setNewName} placeholder="e.g. Brake Pads (set)" /></Field>
+            <Field label="Manufacturer"><JXTextField value={newManufacturer} onChange={setNewManufacturer} placeholder="e.g. Brembo" /></Field>
+            <Field label="Supplier"><JXTextField value={newSupplier} onChange={setNewSupplier} placeholder="e.g. PartsWorld" /></Field>
+            <Field label="Minimum stock"><input className={inputCls} type="number" min="0" step="1" value={newMinStock} onChange={(e) => setNewMinStock(e.target.value)} /></Field>
+          </div>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <JXButton variant="outlined" onClick={() => setShowNewPart(false)}>Close</JXButton>
+            <JXButton variant="contained" onClick={submitNewPart}>Add part</JXButton>
           </div>
         </Modal>
       )}

@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign,
-  FileText, LayoutDashboard, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon,
+  FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon,
   ShoppingCart, Sparkles, Truck, Users, Wallet, Wrench, X,
 } from 'lucide-react'
 import { JXAvatar, JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
@@ -41,11 +41,17 @@ const QUICK_CREATE = [
 ]
 
 export default function Layout() {
-  const { state, setRole, markNotificationRead } = useStore()
+  const { state, setRole, markNotificationRead, updateSettings, apiMode, logout, lastError, clearError } = useStore()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showMobileSearch, setShowMobileSearch] = useState(false)
   const [dark, setDark] = useState(state.settings.theme === 'dark')
+
+  useEffect(() => {
+    const isDark = state.settings.theme === 'dark'
+    setDark(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [state.settings.theme])
 
   // Mobile drawer: close on Escape, and lock body scroll while it is open.
   useEffect(() => {
@@ -66,6 +72,7 @@ export default function Layout() {
     const next = !dark
     setDark(next)
     document.documentElement.classList.toggle('dark', next)
+    updateSettings({ theme: next ? 'dark' : 'light' })
   }
 
   const sidebar = (
@@ -75,7 +82,7 @@ export default function Layout() {
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900 dark:text-white">JX Car Dealer Tracker</p>
-            <p className="text-xs text-slate-500">Dealership OS · <span className="font-semibold text-amber-600">DEMO DATA</span></p>
+            <p className="text-xs text-slate-500">Dealership OS · <span className={`font-semibold ${apiMode ? 'text-emerald-600' : 'text-amber-600'}`}>{apiMode ? 'LIVE API' : 'DEMO DATA'}</span></p>
           </div>
         )}
       </div>
@@ -183,19 +190,44 @@ export default function Layout() {
                 </div>
               )}
             </div>
-            <div className="hidden w-44 lg:block">
-              <JXSelect label="" options={ROLES.map((r) => ({ id: r, label: r }))} value={state.currentRole} onChange={(v) => setRole(v as typeof state.currentRole)} />
-            </div>
+            {!apiMode ? (
+              <div className="hidden w-44 lg:block">
+                <JXSelect label="" options={ROLES.map((r) => ({ id: r, label: r }))} value={state.currentRole} onChange={(v) => setRole(v as typeof state.currentRole)} />
+              </div>
+            ) : (
+              <button
+                onClick={logout}
+                aria-label="Sign out"
+                title="Sign out"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </button>
+            )}
             <button onClick={toggleTheme} aria-label="Toggle theme" className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
               <Moon className="h-5 w-5" />
             </button>
           </div>
         </header>
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-3 py-5 sm:px-6">
+          {lastError && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
+              <div className="flex-1">
+                <p className="font-semibold">Server request failed</p>
+                <p className="text-xs">{lastError}</p>
+              </div>
+              <button onClick={clearError} aria-label="Dismiss error" className="rounded p-1 hover:bg-rose-100 dark:hover:bg-rose-900">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <Outlet />
         </main>
         <footer className="border-t border-slate-200 px-5 py-3 text-xs text-slate-400 dark:border-slate-800">
-          JX Car Dealer Tracker · DEMO environment — seed data is labelled demo and stored locally in your browser. No production backend is connected.
+          {apiMode
+            ? `JX Car Dealer Tracker · Connected to API backend (${state.settings.orgName}).`
+            : 'JX Car Dealer Tracker · DEMO environment — seed data is labelled demo and stored locally in your browser. No production backend is connected.'}
         </footer>
       </div>
     </div>

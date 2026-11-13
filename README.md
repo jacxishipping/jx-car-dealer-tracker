@@ -99,8 +99,8 @@ docs/
                      #   system architecture, module plan, risks, scope note
   DEPLOYMENT.md      # run locally, env vars, Neon, Vercel frontend +
                      #   Render/Railway/VPS server deploys, health, backups
-  schema.sql         # PostgreSQL DDL for the production backend (design
-                     #   only — never executed against a live database)
+  schema.sql         # PostgreSQL DDL for the production backend (39 base
+                     #   tables + dealer.offers in server/src/lib/schema-extras.ts)
 server/              # production API (Node/TS + PostgreSQL) — built
                      #   alongside this frontend; see docs/DEPLOYMENT.md
 vercel.json          # Vite build, dist output, SPA rewrite to /index.html
@@ -143,9 +143,8 @@ With `VITE_API_URL` set it runs in **API mode** against the production
 backend in `server/` (Node/TS + PostgreSQL, JWT auth, server-side RBAC,
 multi-user/multi-organization data) — the frontend is wired for it
 (`src/lib/api.ts`, store API mode, login screen; see `docs/DEPLOYMENT.md`),
-but the server is built and deployed separately, so the API contract here
-is wired against its specified endpoints, not verified against a running
-server. Demo mode remains fully working with no server at all.
+and the server in `server/` has been implemented and verified against
+PostgreSQL. Demo mode remains fully working with no server at all.
 
 Still **not** in this build: **no** object storage (only file names are
 recorded), **no** live MCP server, **no** voice input, **no** OCR, and

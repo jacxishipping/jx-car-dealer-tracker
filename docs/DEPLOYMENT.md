@@ -9,7 +9,7 @@ modes — see [Modes](#modes) — and the server is a separate deployable.
 | Mode | How it is selected | Data | Auth |
 |---|---|---|---|
 | **Demo** (default) | `VITE_API_URL` is **unset** | localStorage key `jx-dealer-tracker-v1`, seeded demo data | None — the role switcher is a demo control |
-| **API** | `VITE_API_URL` is set to the server URL | PostgreSQL, via the API (`GET /api/state` is the snapshot) | JWT login screen (`/auth/login`, `/auth/register`); tokens in localStorage keys `jx-dealer-token` / `jx-dealer-refresh` |
+| **API** | `VITE_API_URL` is set to the server URL | PostgreSQL, via the API (`GET /api/state` is the snapshot) | JWT login screen (`/api/auth/login`, `/api/auth/register`); tokens in localStorage keys `jx-dealer-token` / `jx-dealer-refresh` |
 
 Demo mode is unchanged by the API wiring: with `VITE_API_URL` unset the app
 builds and behaves exactly as before, and no login screen ever appears.
@@ -25,7 +25,6 @@ only `.env.example` (placeholders) is tracked.
 | `VITE_API_URL` | Frontend | Base URL of the API server, e.g. `http://localhost:3001` locally or the deployed server URL in production. Unset = demo mode. |
 | `DATABASE_URL` | Server | PostgreSQL connection string (Neon — see below). |
 | `JWT_SECRET` | Server | Long random secret for signing access tokens. |
-| `JWT_REFRESH_SECRET` | Server | A different long random secret for refresh tokens. |
 | `CORS_ORIGIN` | Server | Frontend origin allowed to call the API, e.g. `http://localhost:5173` locally or the Vercel URL in production. |
 | `PORT` | Server | Port the API listens on (`3001` locally). |
 
@@ -82,7 +81,7 @@ exact start command).
 
 - **Render:** New Web Service → point it at `server/` (or the repo root
   with the root directory set to `server/`) → set `DATABASE_URL`,
-  `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN` (the Vercel frontend
+  `JWT_SECRET`, `CORS_ORIGIN` (the Vercel frontend
   URL) and `PORT` in Environment. Run `npm run migrate` once (Render Shell
   or a one-off job) before the first deploy goes live.
 - **Railway:** New Project → deploy from GitHub, service root `server/` →

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { JXButton, JXCard, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { accountBalance, totalCash } from '../store/engine'
-import { fmtMoney } from '../store/types'
+import { fmtMoney, type Account } from '../store/types'
 import {
   Alert, EmptyState, ExportButton, Field, KpiCard, Modal, Money,
   PageHeader, StatusChip, usePagination,
@@ -12,29 +12,38 @@ const FINANCE_ROLES = ['Owner', 'Admin', 'Accountant'] as const
 const today = () => new Date().toISOString().slice(0, 10)
 
 export default function Finance() {
-  const { state, recordPayment, transfer } = useStore()
+  const { state, recordPayment, transfer, addAccount } = useStore()
   const canFinance = (FINANCE_ROLES as readonly string[]).includes(state.currentRole)
 
   const [acctFilter, setAcctFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [showPayment, setShowPayment] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
+  const [showNewAccount, setShowNewAccount] = useState(false)
 
   // Record payment form
+  const activeAccounts = state.accounts.filter((a) => a.status === 'Active')
   const openReceivables = state.receivables.filter((r) => r.total - r.paid > 0)
   const [payRecId, setPayRecId] = useState(openReceivables[0]?.id ?? '')
   const [payAmount, setPayAmount] = useState('')
-  const [payAccount, setPayAccount] = useState('acc-bank')
+  const [payAccount, setPayAccount] = useState(activeAccounts[0]?.id ?? '')
   const [payError, setPayError] = useState('')
   const [payDone, setPayDone] = useState('')
 
   // Transfer form
-  const [fromAcct, setFromAcct] = useState('acc-bank')
-  const [toAcct, setToAcct] = useState('acc-cash')
+  const [fromAcct, setFromAcct] = useState(activeAccounts[0]?.id ?? '')
+  const [toAcct, setToAcct] = useState(activeAccounts[1]?.id ?? activeAccounts[0]?.id ?? '')
   const [transferAmount, setTransferAmount] = useState('')
   const [transferNote, setTransferNote] = useState('')
   const [transferError, setTransferError] = useState('')
   const [transferDone, setTransferDone] = useState('')
+
+  // New account form
+  const [acctName, setAcctName] = useState('')
+  const [acctType, setAcctType] = useState<Account['type']>('Bank')
+  const [acctOpening, setAcctOpening] = useState('0')
+  const [acctError, setAcctError] = useState('')
+  const [acctDone, setAcctDone] = useState('')
 
   const cash = totalCash(state)
   const receivablesOut = useMemo(
@@ -77,6 +86,23 @@ export default function Finance() {
     setTransferAmount(''); setTransferNote('')
   }
 
+  const submitAccount = () => {
+    setAcctError(''); setAcctDone('')
+    const openingBalance = Number(acctOpening)
+    if (!acctName.trim()) { setAcctError('Account name is required.'); return }
+    if (!Number.isFinite(openingBalance) || openingBalance < 0) { setAcctError('Opening balance must be 0 or more.'); return }
+    const res = addAccount({
+      name: acctName.trim(),
+      type: acctType,
+      currency: state.settings.currency || 'USD',
+      openingBalance,
+      status: 'Active',
+    })
+    if (!res.ok) { setAcctError(res.error ?? 'Could not create account.'); return }
+    setAcctDone(`Account "${acctName.trim()}" created.`)
+    setAcctName(''); setAcctOpening('0')
+  }
+
   const isOverdue = (dueDate: string, outstanding: number) => outstanding > 0 && dueDate < today()
 
   const balanceRows = (r: (typeof state.receivables)[number]) => {
@@ -95,11 +121,24 @@ export default function Finance() {
         subtitle="Accounts, transactions, receivables & payables and the double-entry journal — every balance change goes through the store, never edited by hand."
         actions={
           <>
-            <JXButton variant="contained" size="sm" disabled={!canFinance} onClick={() => { setShowPayment(true); setPayError(''); setPayDone('') }}>
+            <JXButton variant="contained" size="sm" disabled={!canFinance} onClick={() => {
+              setPayRecId(openReceivables[0]?.id ?? '')
+              setPayAccount(activeAccounts[0]?.id ?? '')
+              setShowPayment(true); setPayError(''); setPayDone('')
+            }}>
               Record payment
             </JXButton>
-            <JXButton variant="outlined" size="sm" disabled={!canFinance} onClick={() => { setShowTransfer(true); setTransferError(''); setTransferDone('') }}>
+            <JXButton variant="outlined" size="sm" disabled={!canFinance} onClick={() => {
+              setFromAcct(activeAccounts[0]?.id ?? '')
+              setToAcct(activeAccounts[1]?.id ?? activeAccounts[0]?.id ?? '')
+              setShowTransfer(true); setTransferError(''); setTransferDone('')
+            }}>
               Transfer
+            </JXButton>
+            <JXButton variant="outlined" size="sm" disabled={!canFinance} onClick={() => {
+              setShowNewAccount(true); setAcctError(''); setAcctDone('')
+            }}>
+              + New account
             </JXButton>
           </>
         }
@@ -305,6 +344,32 @@ export default function Finance() {
             <div className="flex flex-wrap justify-end gap-2">
               <JXButton variant="outlined" onClick={() => setShowTransfer(false)}>Cancel</JXButton>
               <JXButton variant="contained" onClick={submitTransfer}>Transfer</JXButton>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showNewAccount && (
+        <Modal title="New financial account" onClose={() => setShowNewAccount(false)}>
+          <div className="space-y-4">
+            <Field label="Account name">
+              <JXTextField label="" value={acctName} onChange={setAcctName} placeholder="e.g. Operating Bank" />
+            </Field>
+            <Field label="Account type">
+              <JXSelect
+                options={(['Bank', 'Cash', 'Petty cash', 'Floorplan', 'Credit'] as const).map((t) => ({ id: t, label: t }))}
+                value={acctType}
+                onChange={(v) => setAcctType(v as Account['type'])}
+              />
+            </Field>
+            <Field label="Opening balance (USD)">
+              <JXTextField label="" value={acctOpening} onChange={setAcctOpening} placeholder="0" />
+            </Field>
+            {acctError && <Alert severity="error" title="Could not create account" description={acctError} />}
+            {acctDone && <Alert severity="success" title={acctDone} />}
+            <div className="flex flex-wrap justify-end gap-2">
+              <JXButton variant="outlined" onClick={() => setShowNewAccount(false)}>Close</JXButton>
+              <JXButton variant="contained" onClick={submitAccount}>Create account</JXButton>
             </div>
           </div>
         </Modal>

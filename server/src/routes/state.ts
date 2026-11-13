@@ -33,7 +33,7 @@ stateRouter.get('/', async (req: Request, res: Response, next: NextFunction) => 
       query(`SELECT e.*, u.display_name AS created_by_name FROM dealer.expenses e LEFT JOIN dealer.users u ON u.id = e.created_by WHERE e.organization_id = $1 AND e.deleted_at IS NULL ORDER BY e.date DESC, e.created_at DESC`, [orgId]),
       query(`SELECT r.*, ec.name AS category_name FROM dealer.reconditioning_jobs r LEFT JOIN dealer.expense_categories ec ON ec.id = r.category_id WHERE r.organization_id = $1 AND r.deleted_at IS NULL ORDER BY r.created_at DESC`, [orgId]),
       query(`SELECT * FROM dealer.parts WHERE organization_id = $1 AND deleted_at IS NULL ORDER BY name ASC`, [orgId]),
-      query(`SELECT * FROM dealer.part_batches WHERE organization_id = $1 AND deleted_at IS NULL ORDER BY purchase_date ASC`, [orgId]),
+      query(`SELECT * FROM dealer.part_batches WHERE organization_id = $1 AND deleted_at IS NULL ORDER BY purchase_date ASC, created_at ASC, id ASC`, [orgId]),
       query(`SELECT * FROM dealer.part_movements WHERE organization_id = $1 ORDER BY date DESC, created_at DESC`, [orgId]),
       query(`SELECT * FROM dealer.part_allocations WHERE organization_id = $1 AND deleted_at IS NULL ORDER BY date DESC`, [orgId]),
       query(`SELECT s.allocation_id, s.batch_id, s.qty, s.unit_price FROM dealer.part_allocation_slices s JOIN dealer.part_allocations a ON a.id = s.allocation_id WHERE a.organization_id = $1`, [orgId]),
