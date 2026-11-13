@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { JXButton, JXButtonGroup, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -177,10 +177,9 @@ export default function Inventory() {
                 {pageItems.map((v) => (
                   <tr
                     key={v.id}
-                    onClick={() => navigate(`/inventory/${v.id}`)}
-                    className="cursor-pointer border-b border-slate-100 hover:bg-indigo-50/60 last:border-0 dark:border-slate-700 dark:hover:bg-slate-800"
+                    className="border-b border-slate-100 hover:bg-indigo-50/60 last:border-0 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
-                    <td className="px-4 py-3 font-mono font-semibold text-slate-900 dark:text-white">{v.stockNumber}</td>
+                    <td className="px-4 py-3 font-mono font-semibold"><Link to={`/inventory/${v.id}`} className="rounded-sm text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{v.stockNumber}</Link></td>
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-900 dark:text-white">{v.year} {v.make} {v.model}</span>
                       <span className="block text-xs text-slate-500 dark:text-slate-400">{v.trim} · {v.extColor}</span>
@@ -255,7 +254,7 @@ export default function Inventory() {
               </div>
             </Modal>
           )}
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Click a row to open the vehicle detail page.</p>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Select a stock number to open the vehicle detail page.</p>
         </>
       )
       }

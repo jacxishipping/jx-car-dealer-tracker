@@ -9,9 +9,10 @@
 // shape — not a generic table), JXBadge (count badge, not a status pill).
 // Tables, modals and charts below are local, styled to the JXUI language
 // (Indigo #4f46e5, light canvas #F8FAFC, white 16px cards, Plus Jakarta Sans).
-import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { Children, cloneElement, isValidElement, useId, useRef, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { JXAlert, JXButton, JXCard, JXChip, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { AppTextField } from './AppTextField'
+import { useFocusTrap } from './useFocusTrap'
 import { Download, SearchX, X } from 'lucide-react'
 import { fmtMoney } from '../store/types'
 import { downloadCsv } from '../lib/csv'
@@ -78,21 +79,7 @@ export function Alert({ severity, title, description }: { severity: 'warning' | 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
-  const onCloseRef = useRef(onClose)
-  useEffect(() => { onCloseRef.current = onClose }, [onClose])
-  // Close on Escape and move initial focus into the dialog; full-screen sheet
-  // on phones (dynamic viewport height so mobile browser chrome never clips
-  // the dialog), centred on desktop.
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      prev?.focus?.()
-    }
-  }, [])
+  useFocusTrap(dialogRef, true, onClose)
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6" onClick={onClose}>
       <div

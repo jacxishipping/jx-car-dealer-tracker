@@ -165,9 +165,8 @@ export default function CRM() {
                     const overdue = isOverdue(l.followUpDate, l.stage)
                     return (
                       <div key={l.id}
-                        className={`cursor-pointer rounded-[var(--radius-control)] border bg-white p-3 shadow-sm dark:bg-[var(--color-surface-dark)] ${selectedLeadId === l.id ? 'border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-900' : 'border-slate-200 dark:border-slate-700'}`}
-                        onClick={() => { setSelectedLeadId(l.id); setSelectedCustomerId(l.customerId) }}>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{c?.name ?? 'Unknown customer'}</p>
+                        className={`rounded-[var(--radius-control)] border bg-white p-3 shadow-sm dark:bg-[var(--color-surface-dark)] ${selectedLeadId === l.id ? 'border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-900' : 'border-slate-200 dark:border-slate-700'}`}>
+                        <button type="button" aria-pressed={selectedLeadId === l.id} onClick={() => { setSelectedLeadId(l.id); setSelectedCustomerId(l.customerId) }} className="rounded-sm text-left text-sm font-semibold text-slate-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-white">{c?.name ?? 'Unknown customer'}</button>
                         <p className="mt-0.5 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{l.notes}</p>
                         <p className={`mt-1.5 text-xs ${overdue ? 'font-semibold text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
                           Follow-up: {l.followUpDate}{overdue ? ' — OVERDUE' : ''}

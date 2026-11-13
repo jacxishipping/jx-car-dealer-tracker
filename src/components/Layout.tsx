@@ -10,6 +10,7 @@ import { JXAvatar, JXButton, JXSelect } from '@jacxishippingorg/jx-ui-react'
 import { AppTextField as JXTextField } from "./AppTextField"
 import { useStore } from '../store/store'
 import { ROLES } from '../store/types'
+import { useFocusTrap } from './useFocusTrap'
 
 const NAV_SECTIONS = [
   {
@@ -69,6 +70,7 @@ export default function Layout() {
   const [showQuick, setShowQuick] = useState(false)
   const [query, setQuery] = useState('')
   const headerActionsRef = useRef<HTMLDivElement>(null)
+  const mobileDrawerRef = useRef<HTMLElement>(null)
   const navigate = useNavigate()
   const dark = state.settings.theme === 'dark'
   const unread = state.notifications.filter((n) => !n.read).length
@@ -77,14 +79,14 @@ export default function Layout() {
     document.documentElement.classList.toggle('dark', dark)
   }, [dark])
 
-  // Mobile drawer: close on Escape, and lock body scroll while it is open.
+  useFocusTrap(mobileDrawerRef, mobileOpen, () => setMobileOpen(false))
+
+  // Keep the page from scrolling behind the mobile navigation drawer.
   useEffect(() => {
     if (!mobileOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
-    document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    return () => { document.body.style.overflow = prev }
   }, [mobileOpen])
 
   // Close Quick create and Notifications popovers on Escape or outside click.
@@ -182,8 +184,8 @@ export default function Layout() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72">
+          <button type="button" aria-label="Close navigation" className="absolute inset-0 h-full w-full cursor-default bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside id="main-navigation" ref={mobileDrawerRef} role="dialog" aria-modal="true" aria-label="Main navigation" tabIndex={-1} className="absolute inset-y-0 left-0 w-72 focus:outline-none">
             {sidebar}
             <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close menu" className="absolute right-2 top-2 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"><X className="h-5 w-5" /></button>
           </aside>
@@ -192,7 +194,7 @@ export default function Layout() {
 
       <div className={`flex min-w-0 flex-1 flex-col ${collapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
         <header className="sticky top-0 z-30 flex min-w-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white/90 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-5">
-          <button type="button" className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] text-slate-700 hover:bg-slate-100 lg:hidden dark:text-slate-200 dark:hover:bg-slate-800" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <button type="button" className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] text-slate-700 hover:bg-slate-100 lg:hidden dark:text-slate-200 dark:hover:bg-slate-800" onClick={() => setMobileOpen(true)} aria-label="Open menu" aria-expanded={mobileOpen} aria-controls="main-navigation">
             <Menu className="h-5 w-5" />
           </button>
           <button type="button" className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] text-slate-700 hover:bg-slate-100 sm:hidden dark:text-slate-200 dark:hover:bg-slate-800" onClick={() => setShowMobileSearch((s) => !s)} aria-label="Search">
@@ -229,7 +231,7 @@ export default function Layout() {
           )}
           <div ref={headerActionsRef} className="ml-auto flex items-center gap-1.5">
             <div className="relative">
-              <JXButton variant="outlined" size="sm" lockWidth={false} className="!min-h-[44px] !min-w-[44px]" onClick={() => { setShowQuick((s) => !s); setShowBell(false) }}>
+              <JXButton variant="outlined" size="sm" lockWidth={false} className="!min-h-[44px] !min-w-[44px]" onClick={() => { setShowQuick((s) => !s); setShowBell(false) }} aria-expanded={showQuick} aria-haspopup="true">
                 <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Quick create</span></span>
               </JXButton>
               {showQuick && (
@@ -241,7 +243,7 @@ export default function Layout() {
               )}
             </div>
             <div className="relative">
-              <button type="button" onClick={() => { setShowBell((s) => !s); setShowQuick(false) }} aria-label="Notifications" className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+              <button type="button" onClick={() => { setShowBell((s) => !s); setShowQuick(false) }} aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'} aria-expanded={showBell} aria-haspopup="true" className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
                 <Bell className="h-5 w-5" />
                 {unread > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{unread}</span>}
               </button>
