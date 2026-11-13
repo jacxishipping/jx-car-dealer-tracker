@@ -76,8 +76,8 @@ export function JXTimeline(props: ComponentProps<typeof LibraryTimeline>) {
 }
 
 export function JXProgress(props: ComponentProps<typeof LibraryProgress>) {
-  const { className, ...rest } = props
-  return <LibraryProgress {...rest} className={mergeClass('jx-app-progress', className)} />
+  const { className, showControls = false, eta = '', completeLabel = 'Complete', ...rest } = props
+  return <LibraryProgress {...rest} showControls={showControls} eta={eta} completeLabel={completeLabel} className={mergeClass('jx-app-progress', className)} />
 }
 
 export function JXStepper(props: ComponentProps<typeof LibraryStepper>) {

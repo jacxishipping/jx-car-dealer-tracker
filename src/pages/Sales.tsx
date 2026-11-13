@@ -1,21 +1,27 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { dealProfit, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
+import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
-import {JXAlert, JXButton, JXCard, JXSelect} from '../components/JXUI'
+import {JXAlert, JXButton, JXCard, JXNumberField, JXSelect} from '../components/JXUI'
+import { WorkflowPage, type WorkflowStep } from '../components/WorkflowPage'
 const num = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0 }
 const vehLabel = (v: { stockNumber: string; year: number; make: string; model: string }) => `${v.stockNumber} — ${v.year} ${v.make} ${v.model}`
 
 export default function Sales() {
   const { state, createDeal, finalizeSale, addCustomer } = useStore()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const newPage = location.pathname.endsWith('/sales/new')
+  const [createStep, setCreateStep] = useState(0)
   const { vehicles, customers, deals, sales, expenses, partAllocations, settings, currentUser } = state
   const [statusFilter, setStatusFilter] = useState('All')
-  const [selectedId, setSelectedId] = useState<string | null>(deals[0]?.id ?? null)
-  const [showNew, setShowNew] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(() => (location.state as { createdDealId?: string } | null)?.createdDealId ?? deals[0]?.id ?? null)
   const [finalizeMsg, setFinalizeMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   // New-deal form state
@@ -67,20 +73,25 @@ export default function Sales() {
   }
 
   const submitDeal = () => {
+    if (!vehicleId) { setFormError('Select a vehicle (Available or Reserved only).'); return }
+    if (!newCust && !customerId) { setFormError('Select a customer.'); return }
+    if (newCust && !custName.trim()) { setFormError('Enter the new customer name.'); return }
+    if (num(sellingPrice) <= 0) { setFormError('Selling price must be greater than zero.'); return }
+    if ([discount, taxes, fees, deposit, tradeInValue].some((amount) => !Number.isFinite(Number(amount)) || Number(amount) < 0)) {
+      setFormError('Discount, taxes, fees, deposit, and trade-in value must be zero or greater.')
+      return
+    }
     let cid = customerId
     if (newCust) {
-      if (!custName.trim()) { setFormError('Enter the new customer name.'); return }
       cid = addCustomer({ name: custName.trim(), phone: custPhone.trim(), email: custEmail.trim(), address: '', preferredContact: 'Phone', budget: num(sellingPrice), leadSource: 'Walk-in', salesperson: custSalesperson || currentUser, notes: '', interestedVehicleIds: vehicleId ? [vehicleId] : [] })
     }
-    if (!vehicleId) { setFormError('Select a vehicle (Available or Reserved only).'); return }
-    if (!cid) { setFormError('Select or create a customer.'); return }
-    if (num(sellingPrice) <= 0) { setFormError('Selling price must be greater than zero.'); return }
     const id = createDeal({
       vehicleId, customerId: cid, salesperson: currentUser,
       sellingPrice: num(sellingPrice), discount: num(discount), taxes: num(taxes), fees: num(fees),
       deposit: num(deposit), tradeInValue: num(tradeInValue), tradeInDesc: tradeInDesc.trim(), paymentMethod,
     })
-    setSelectedId(id); setShowNew(false); resetForm(); setFinalizeMsg(null)
+    setSelectedId(id); resetForm(); setFinalizeMsg(null)
+    navigate('/sales', { replace: true, state: { createdDealId: id } })
   }
 
   const onFinalize = () => {
@@ -95,13 +106,40 @@ export default function Sales() {
   const formCost = formVehicle ? vehicleAllInCost(formVehicle, expenses, partAllocations, settings.overheadPerVehicle) : null
   const formProfit = formVehicle && num(sellingPrice) > 0 ? dealProfit({ sellingPrice: num(sellingPrice), discount: num(discount), taxes: num(taxes), fees: num(fees) }, formCost!) : null
 
+  const dealSteps: WorkflowStep[] = [
+    { id: 'vehicle', label: 'Vehicle', description: 'Select an available or reserved vehicle' },
+    { id: 'customer', label: 'Customer', description: 'Choose a customer or add a new one' },
+    { id: 'terms', label: 'Terms', description: 'Set the price and review profitability' },
+  ]
+  const validateDealStep = () => {
+    setFormError('')
+    if (createStep === 0 && !vehicleId) { setFormError('Select an available or reserved vehicle to continue.'); return false }
+    if (createStep === 1 && (newCust ? !custName.trim() : !customerId)) { setFormError(newCust ? 'Enter the customer name to continue.' : 'Select a customer to continue.'); return false }
+    if (createStep === 2) {
+      const amounts = [sellingPrice, discount, taxes, fees, deposit, tradeInValue]
+      if (num(sellingPrice) <= 0 || amounts.some((amount) => Number(amount) < 0)) { setFormError('Selling price must be above zero; other amounts must be zero or greater.'); return false }
+    }
+    return true
+  }
+  const openNewDeal = () => { resetForm(); setCreateStep(0); navigate('/sales/new', { state: { from: `${location.pathname}${location.search}` } }) }
+  const cancelNewDeal = () => {
+    const from = (location.state as { from?: string } | null)?.from
+    navigate(from && from.startsWith('/sales') && !from.endsWith('/new') ? from : '/sales', { replace: true })
+  }
+
+  if (newPage) return <WorkflowPage title="New deal" subtitle="Create a draft deal, then continue to finalisation from the deal review." steps={dealSteps} step={createStep} onStepChange={setCreateStep} onCancel={cancelNewDeal} onBack={() => setCreateStep((current) => Math.max(0, current - 1))} onNext={() => { if (validateDealStep()) setCreateStep((current) => Math.min(dealSteps.length - 1, current + 1)) }} onSubmit={submitDeal} submitLabel="Create deal draft" error={formError}>
+    {createStep === 0 && <section aria-labelledby="deal-vehicle-title"><h2 id="deal-vehicle-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Choose a vehicle</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Vehicle · Available / Reserved" className="jx-select-field jx-field-select sm:col-span-2" searchable placeholder="Select a vehicle" value={vehicleId} onChange={setVehicleId} options={sellable.map((v) => ({ id: v.id, label: `${vehLabel(v)} · ${v.status} · asking ${fmtMoney(v.askingPrice)}` }))} /><Field label="Salesperson"><input className={inputCls} value={currentUser} disabled /></Field>{formVehicle && <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><p className="font-semibold text-slate-900 dark:text-white">{vehLabel(formVehicle)}</p><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Asking <Money value={formVehicle.askingPrice} /> · Minimum <Money value={formVehicle.minPrice} /></p></div>}</div></section>}
+    {createStep === 1 && <section aria-labelledby="deal-customer-title"><h2 id="deal-customer-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Choose a customer</h2><div className="mb-4 flex flex-wrap gap-2"><JXButton type="button" variant={newCust ? 'outlined' : 'contained'} lockWidth={false} onClick={() => setNewCust(false)}>Existing customer</JXButton><JXButton type="button" variant={newCust ? 'contained' : 'outlined'} lockWidth={false} onClick={() => setNewCust(true)}>Create customer with deal</JXButton></div>{newCust ? <div className="grid gap-4 sm:grid-cols-2"><Field label="Customer name *"><JXTextField className="jx-text-field" label="" value={custName} onChange={setCustName} placeholder="Full name" /></Field><Field label="Phone"><JXTextField className="jx-text-field" label="" value={custPhone} onChange={setCustPhone} placeholder="+971 …" /></Field><Field label="Email"><JXTextField className="jx-text-field" label="" value={custEmail} onChange={setCustEmail} placeholder="name@example.com" /></Field><Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={custSalesperson} onChange={setCustSalesperson} /></Field></div> : <JXSelect label="Customer" className="jx-select-field jx-field-select" searchable placeholder="Select a customer" value={customerId} onChange={setCustomerId} options={customers.map((c) => ({ id: c.id, label: `${c.name} · budget ${fmtMoney(c.budget)} · ${c.salesperson}` }))} />}</section>}
+    {createStep === 2 && <section aria-labelledby="deal-terms-title"><h2 id="deal-terms-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Price and deal terms</h2><div className="grid gap-4 sm:grid-cols-2">{([['sellingPrice','Selling price (USD) *'],['discount','Discount (USD)'],['taxes','Taxes (USD)'],['fees','Fees (USD)'],['deposit','Deposit (USD)'],['tradeInValue','Trade-in value (USD)']] as const).map(([key,label]) => { const values = { sellingPrice, discount, taxes, fees, deposit, tradeInValue }; const setValues = { sellingPrice:setSellingPrice, discount:setDiscount, taxes:setTaxes, fees:setFees, deposit:setDeposit, tradeInValue:setTradeInValue }; return <Field key={key} label={label}><JXNumberField label="" value={num(values[key])} min={0} max={1_000_000_000} step={100} unit="USD" onChange={(value) => setValues[key](String(value))} /></Field> })}<Field label="Trade-in description"><JXTextField className="jx-text-field" label="" value={tradeInDesc} onChange={setTradeInDesc} placeholder="Optional vehicle offered in part-exchange" /></Field><JXSelect label="Payment method" className="jx-select-field jx-field-select" value={paymentMethod} onChange={setPaymentMethod} options={['Bank transfer', 'Cash', 'Finance', 'Card'].map((m) => ({ id: m, label: m }))} /></div>{formVehicle && formCost !== null && <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-900"><p className="font-semibold">Live estimate · {vehLabel(formVehicle)}</p><p className="mt-1 text-slate-600 dark:text-slate-300">All-in cost <Money value={formCost} /> · minimum price <Money value={formVehicle.minPrice} />{formProfit && <> · estimated net profit <Money value={formProfit.netProfit} /> ({formProfit.marginPct.toFixed(1)}% margin) · break-even <Money value={formProfit.breakEven} /></>}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Estimate only. Final figures are fixed when a manager finalises the sale.</p></div>}</section>}
+  </WorkflowPage>
+
   return (
     <>
       <PageHeader
         title="Deal Desk"
         subtitle="Deals, profitability and finalised sales — all figures from live vehicle costs, never estimates typed in by hand."
         actions={[
-          <JXButton key="new" variant="contained" size="sm" onClick={() => { resetForm(); setShowNew(true) }}>+ New deal</JXButton>,
+          <JXButton key="new" variant="contained" size="sm" onClick={openNewDeal}>+ New deal</JXButton>,
           <ExportButton key="exp" filename="deals.csv" rows={filtered.map((d) => {
             const v = vehicles.find((x) => x.id === d.vehicleId); const c = customers.find((x) => x.id === d.customerId)
             return { ref: d.ref, vehicle: v ? vehLabel(v) : d.vehicleId, customer: c?.name ?? '', sellingPrice: d.sellingPrice, discount: d.discount, status: d.status, saleRef: d.saleRef ?? '' }
@@ -136,7 +174,7 @@ export default function Sales() {
                   <>
                     <TableScrollHint />
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[640px] text-sm">
+                      <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                           <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                             <th className="py-2 pr-2">Ref</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2">Status</th><th className="py-2" />
                           </tr></thead>
@@ -157,7 +195,7 @@ export default function Sales() {
                                       )
                       })}
                                     </tbody>
-                  </table>
+                  </table></ResponsiveTable>
                         </div>
                         </>
             )}
@@ -172,7 +210,7 @@ export default function Sales() {
                             <>
                               <TableScrollHint />
                               <div className="overflow-x-auto">
-                                <table className="w-full min-w-[640px] text-sm">
+                                <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                                   <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                                     <th className="py-2 pr-2">Sale</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2 text-right">Net profit</th><th className="py-2 text-right">Margin</th>
                                   </tr></thead>
@@ -193,7 +231,7 @@ export default function Sales() {
                                       )
                                     })}
                                   </tbody>
-                                </table>
+                                </table></ResponsiveTable>
                               </div>
                             </>
                           )}
@@ -265,57 +303,6 @@ export default function Sales() {
                       )}
                     </div>
                   </div>
-
-                {showNew && (
-                  <Modal title="New deal" onClose={() => setShowNew(false)} wide>
-                    {formError && <div className="mb-3"><Alert severity="error" title="Check the form" description={formError} /></div>}
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <JXSelect label="Vehicle — Available / Reserved only" className="jx-select-field jx-field-select" searchable placeholder="Select a vehicle" value={vehicleId} onChange={setVehicleId}
-                        options={sellable.map((v) => ({ id: v.id, label: `${vehLabel(v)} · ${v.status} · asking ${fmtMoney(v.askingPrice)}` }))} />
-                      <Field label="Salesperson">
-                        <input className={inputCls} value={currentUser} disabled />
-                      </Field>
-                        <div className="flex flex-wrap gap-2 sm:col-span-2">
-                          <JXButton variant={newCust ? 'contained' : 'outlined'} size="sm" lockWidth={false} onClick={() => setNewCust(false)}>Existing customer</JXButton>
-                          <JXButton variant={newCust ? 'outlined' : 'contained'} size="sm" lockWidth={false} onClick={() => setNewCust(true)}>Create new customer</JXButton>
-                        </div>
-                        {newCust ? (
-                          <>
-                            <Field label="Customer name *"><JXTextField className="jx-text-field" label="" value={custName} onChange={setCustName} placeholder="Full name" /></Field>
-                            <Field label="Phone"><JXTextField className="jx-text-field" label="" value={custPhone} onChange={setCustPhone} placeholder="+971 …" /></Field>
-                            <Field label="Email"><JXTextField className="jx-text-field" label="" value={custEmail} onChange={setCustEmail} placeholder="name@example.com" /></Field>
-                            <Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={custSalesperson} onChange={setCustSalesperson} /></Field>
-                          </>
-                        ) : (
-                          <div className="sm:col-span-2">
-                            <JXSelect label="Customer" className="jx-select-field jx-field-select" searchable placeholder="Select a customer" value={customerId} onChange={setCustomerId}
-                              options={customers.map((c) => ({ id: c.id, label: `${c.name} · budget ${fmtMoney(c.budget)} · ${c.salesperson}` }))} />
-                          </div>
-                        )}
-                        <Field label="Selling price *"><input className={inputCls} type="number" min="0" step="0.01" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="e.g. 25400" /></Field>
-                        <Field label="Discount"><input className={inputCls} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
-                        <Field label="Taxes"><input className={inputCls} type="number" min="0" step="0.01" value={taxes} onChange={(e) => setTaxes(e.target.value)} /></Field>
-                        <Field label="Fees"><input className={inputCls} type="number" min="0" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} /></Field>
-                        <Field label="Deposit"><input className={inputCls} type="number" min="0" step="0.01" value={deposit} onChange={(e) => setDeposit(e.target.value)} /></Field>
-                        <Field label="Trade-in value"><input className={inputCls} type="number" min="0" step="0.01" value={tradeInValue} onChange={(e) => setTradeInValue(e.target.value)} /></Field>
-                        <Field label="Trade-in description" hint="Vehicle offered in part-exchange, if any"><JXTextField className="jx-text-field" label="" value={tradeInDesc} onChange={setTradeInDesc} placeholder="e.g. 2015 Corolla, 120k km" /></Field>
-                        <JXSelect label="Payment method" className="jx-select-field jx-field-select" value={paymentMethod} onChange={setPaymentMethod} options={['Bank transfer', 'Cash', 'Finance', 'Card'].map((m) => ({ id: m, label: m }))} />
-                      </div>
-                      {formVehicle && formCost !== null && (
-                          <div className="mt-4 rounded-[var(--radius-control)] bg-slate-50 p-3 text-sm dark:bg-slate-900">
-                            <p className="font-semibold">Live estimate for {vehLabel(formVehicle)}</p>
-                            <p className="text-slate-600 dark:text-slate-300">All-in cost <Money value={formCost} /> · minimum price <Money value={formVehicle.minPrice} />
-                              {formProfit && <> · estimated net profit <Money value={formProfit.netProfit} /> ({formProfit.marginPct.toFixed(1)}% margin) · break-even <Money value={formProfit.breakEven} /></>}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Estimate only — final figures are fixed when the sale is finalised.</p>
-                          </div>
-          )}
-                          <div className="mt-5 flex flex-wrap justify-end gap-2">
-                            <JXButton variant="outlined" onClick={() => setShowNew(false)}>Cancel</JXButton>
-                            <JXButton variant="contained" onClick={submitDeal}>Create deal (Draft)</JXButton>
-                          </div>
-                        </Modal>
-                      )}
                     </>
                     )
 }

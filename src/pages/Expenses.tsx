@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import {JXButton, JXSelect} from '../components/JXUI'
 // Expenses — filterable expense ledger with direct/overhead totals and CSV export.
 import { useMemo, useState } from 'react'
@@ -143,7 +144,7 @@ export default function Expenses() {
         <>
           <TableScrollHint />
           <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <ResponsiveTable><table className="w-full min-w-[900px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   <th className="px-4 py-3">Date</th><th className="px-4 py-3">Description</th>
@@ -173,7 +174,7 @@ export default function Expenses() {
                   )
                 })}
               </tbody>
-            </table>
+            </table></ResponsiveTable>
           </div>
         </>
         )}

@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 import {JXButton, JXCard, JXSelect} from '../components/JXUI'
 
@@ -179,7 +180,7 @@ export default function Finance() {
               <>
                 <TableScrollHint />
                 <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                  <table className={tableCls}>
+                  <ResponsiveTable><table className={tableCls}>
                     <thead><tr><th className={thCls}>Customer</th><th className={thCls}>Ref</th><th className={thCls}>Total</th><th className={thCls}>Paid</th><th className={thCls}>Outstanding</th><th className={thCls}>Due</th><th className={thCls}>Status</th></tr></thead>
                     <tbody>
                       {state.receivables.filter((r) => r.kind === 'Customer').map((r) => {
@@ -197,7 +198,7 @@ export default function Finance() {
                         )
                       })}
                     </tbody>
-                  </table>
+                  </table></ResponsiveTable>
                 </div>
               </>
             )}
@@ -210,7 +211,7 @@ export default function Finance() {
               <>
                 <TableScrollHint />
                 <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                  <table className={tableCls}>
+                  <ResponsiveTable><table className={tableCls}>
                     <thead><tr><th className={thCls}>Payee</th><th className={thCls}>Ref</th><th className={thCls}>Total</th><th className={thCls}>Paid</th><th className={thCls}>Outstanding</th><th className={thCls}>Due</th><th className={thCls}>Status</th></tr></thead>
                     <tbody>
                       {state.receivables.filter((r) => r.kind !== 'Customer').map((r) => {
@@ -228,7 +229,7 @@ export default function Finance() {
                         )
                       })}
                     </tbody>
-                  </table>
+                  </table></ResponsiveTable>
                 </div>
               </>
             )}
@@ -256,7 +257,7 @@ export default function Finance() {
           <>
               <TableScrollHint />
               <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                <table className={tableCls}>
+                <ResponsiveTable><table className={tableCls}>
                   <thead><tr><th className={thCls}>Date</th><th className={thCls}>Account</th><th className={thCls}>Type</th><th className={thCls}>Category</th><th className={thCls}>Reference</th><th className={thCls}>Note</th><th className={`${thCls} text-right`}>Amount</th></tr></thead>
                   <tbody>
                     {txnPage.map((t) => (
@@ -271,7 +272,7 @@ export default function Finance() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></ResponsiveTable>
               </div>
               {txnControls}
             </>
@@ -292,7 +293,7 @@ export default function Finance() {
                   className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
                   {j.reversed && <p className="mb-2 text-sm font-semibold text-rose-600 dark:text-rose-400">Reversed{j.reversedBy ? ` by ${j.reversedBy}` : ''}</p>}
                   <div className="overflow-x-auto">
-                    <table className={tableCls}>
+                    <ResponsiveTable><table className={tableCls}>
                       <thead><tr><th className={thCls}>Account</th><th className={`${thCls} text-right`}>Debit</th><th className={`${thCls} text-right`}>Credit</th></tr></thead>
                       <tbody>
                         {j.lines.map((l, i) => (
@@ -303,7 +304,7 @@ export default function Finance() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></ResponsiveTable>
                   </div>
                 </JXCard>
               ))}

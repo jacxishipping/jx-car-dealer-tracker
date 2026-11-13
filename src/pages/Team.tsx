@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -79,7 +80,7 @@ export default function Team() {
           <>
               <TableScrollHint />
               <div className="mb-4 overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                <table className="w-full min-w-[640px] text-sm">
+                <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                   <thead><tr><th className={thCls}>Member</th><th className={thCls}>Email</th><th className={thCls}>Role</th><th className={thCls}>Status</th><th className={thCls}>Active</th></tr></thead>
                   <tbody>
                     {pageItems.map((m) => (
@@ -100,7 +101,7 @@ export default function Team() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></ResponsiveTable>
               </div>
               {controls}
             </>
@@ -112,7 +113,7 @@ export default function Team() {
             </p>
               <TableScrollHint />
               <div className="mb-4 overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                <table className="w-full min-w-[640px] text-sm">
+                <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                   <thead><tr><th className={thCls}>Capability</th>{ROLES.map((r) => <th key={r} className={`${thCls} text-center`}>{r}</th>)}</tr></thead>
                   <tbody>
                     {MATRIX.map((row) => (
@@ -126,7 +127,7 @@ export default function Team() {
                           </tr>
                         ))}
                       </tbody>
-        </table>
+        </table></ResponsiveTable>
               </div>
 
               <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Audit trail</h2>

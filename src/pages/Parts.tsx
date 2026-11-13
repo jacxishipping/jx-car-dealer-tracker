@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -145,7 +146,7 @@ export default function Parts() {
               <>
                 <TableScrollHint />
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-sm">
+                  <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                     <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                       <th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Supplier</th><th className="py-2 pr-2 text-right">Stock</th><th className="py-2 pr-2 text-right">Min</th><th className="py-2 pr-2 text-right">FIFO value</th><th className="py-2" />
                     </tr></thead>
@@ -165,7 +166,7 @@ export default function Parts() {
                         )
                       })}
                     </tbody>
-                  </table>
+                  </table></ResponsiveTable>
                 </div>
               </>
               )}
@@ -190,7 +191,7 @@ export default function Parts() {
                 <>
                   <TableScrollHint />
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
+                    <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                       <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                         <th className="py-2 pr-2">Date</th><th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Type</th><th className="py-2 pr-2 text-right">Qty</th><th className="py-2 pr-2 text-right">Unit cost</th><th className="py-2 pr-2 text-right">Total</th><th className="py-2 pr-2">Vehicle / note</th>
                       </tr></thead>
@@ -211,7 +212,7 @@ export default function Parts() {
                           )
                         })}
                       </tbody>
-                    </table>
+                    </table></ResponsiveTable>
                   </div>
                 </>
                   )}
@@ -236,7 +237,7 @@ export default function Parts() {
                 <>
                   <TableScrollHint />
                   <div className="mb-4 overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
+                    <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                       <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                         <th className="py-2 pr-2">Batch</th><th className="py-2 pr-2">Invoice</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Remaining</th><th className="py-2 text-right">Unit price</th>
                       </tr></thead>
@@ -251,7 +252,7 @@ export default function Parts() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></ResponsiveTable>
                   </div>
                 </>
               )}

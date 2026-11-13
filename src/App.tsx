@@ -55,11 +55,15 @@ export default function App() {
               <Route path="inventory/new" element={<AddVehicle />} />
               <Route path="inventory/:id" element={<VehicleDetail />} />
               <Route path="purchases" element={<Purchases />} />
+              <Route path="purchases/new" element={<Purchases />} />
               <Route path="transportation" element={<Transportation />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="reconditioning" element={<Reconditioning />} />
+              <Route path="reconditioning/new" element={<Reconditioning />} />
               <Route path="sales" element={<Sales />} />
+              <Route path="sales/new" element={<Sales />} />
               <Route path="crm" element={<CRM />} />
+              <Route path="crm/new" element={<CRM />} />
               <Route path="parts" element={<Parts />} />
               <Route path="finance" element={<Finance />} />
               <Route path="analytics" element={<Analytics />} />

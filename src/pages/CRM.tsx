@@ -1,27 +1,31 @@
 import { useMemo, useState } from 'react'
 
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { LEAD_STAGES, fmtMoney, type LeadStage } from '../store/types'
-import { Alert, EmptyState, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
+import { Alert, EmptyState, Field, inputCls, KpiCard, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
-import {JXButton, JXCard, JXChip, JXSelect} from '../components/JXUI'
+import {JXButton, JXCard, JXChip, JXNumberField, JXSelect} from '../components/JXUI'
+import { WorkflowPage, type WorkflowStep } from '../components/WorkflowPage'
 const today = new Date().toISOString().slice(0, 10)
 const isOverdue = (followUpDate: string, stage: LeadStage) =>
   followUpDate < today && stage !== 'Sold' && stage !== 'Lost'
 
 export default function CRM() {
   const { state, addCustomer, moveLead, addInteraction, addOffer } = useStore()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const newPage = location.pathname.endsWith('/crm/new')
+  const [createStep, setCreateStep] = useState(0)
   const [searchParams] = useSearchParams()
   const { customers, leads, interactions, offers, vehicles, currentUser } = state
   const [search, setSearch] = useState('')
   const [salesFilter, setSalesFilter] = useState('All')
   const [followUpFilter, setFollowUpFilter] = useState(searchParams.get('followUp') === 'overdue' ? 'Overdue' : 'All')
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(() => (location.state as { newCustomerId?: string } | null)?.newCustomerId ?? null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
-  const [showNew, setShowNew] = useState(false)
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback] = useState(() => (location.state as { customerFeedback?: string } | null)?.customerFeedback ?? '')
   const [undoMove, setUndoMove] = useState<{ leadId: string; previousStage: LeadStage } | null>(null)
 
   // New customer form
@@ -75,11 +79,36 @@ export default function CRM() {
       preferredContact: pref, budget: parseFloat(budget) || 0, leadSource, salesperson: salesperson || currentUser,
       notes: notes.trim(), interestedVehicleIds: [],
     })
-    setSelectedCustomerId(id); setShowNew(false)
+    setSelectedCustomerId(id)
     setUndoMove(null)
     setFeedback('Customer added successfully.')
     setName(''); setPhone(''); setEmail(''); setAddress(''); setBudget(''); setNotes(''); setFormError('')
+    setCreateStep(0)
+    navigate('/crm', { replace: true, state: { newCustomerId: id, customerFeedback: 'Customer added successfully.' } })
   }
+
+  const customerSteps: WorkflowStep[] = [
+    { id: 'contact', label: 'Contact', description: 'Customer identity and contact details' },
+    { id: 'preferences', label: 'Preferences', description: 'Contact preference, budget, and lead source' },
+    { id: 'review', label: 'Review', description: 'Check the customer details before saving' },
+  ]
+  const validateCustomerStep = () => {
+    setFormError('')
+    if (createStep === 0 && !name.trim()) { setFormError('Customer name is required.'); return false }
+    if (createStep === 1 && budget.trim() && (!Number.isFinite(Number(budget)) || Number(budget) < 0)) { setFormError('Budget must be zero or greater.'); return false }
+    return true
+  }
+  const openNewCustomer = () => { setFormError(''); setCreateStep(0); navigate('/crm/new', { state: { from: `${location.pathname}${location.search}` } }) }
+  const cancelNewCustomer = () => {
+    const from = (location.state as { from?: string } | null)?.from
+    navigate(from && from.startsWith('/crm') && !from.endsWith('/new') ? from : '/crm', { replace: true })
+  }
+
+  if (newPage) return <WorkflowPage title="New customer" subtitle="Add a customer record in three short steps." steps={customerSteps} step={createStep} onStepChange={setCreateStep} onCancel={cancelNewCustomer} onBack={() => setCreateStep((current) => Math.max(0, current - 1))} onNext={() => { if (validateCustomerStep()) setCreateStep((current) => Math.min(customerSteps.length - 1, current + 1)) }} onSubmit={submitCustomer} submitLabel="Add customer" error={formError}>
+    {createStep === 0 && <section aria-labelledby="customer-contact-title"><h2 id="customer-contact-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Customer contact</h2><div className="grid gap-4 sm:grid-cols-2"><Field label="Name *"><JXTextField className="jx-text-field" label="" value={name} onChange={setName} placeholder="Full name" /></Field><Field label="Phone"><JXTextField className="jx-text-field" label="" value={phone} onChange={setPhone} placeholder="+971 …" /></Field><Field label="Email"><JXTextField className="jx-text-field" label="" value={email} onChange={setEmail} placeholder="name@example.com" type="email" /></Field><Field label="Address"><JXTextField className="jx-text-field" label="" value={address} onChange={setAddress} placeholder="Area, city" /></Field></div></section>}
+    {createStep === 1 && <section aria-labelledby="customer-preferences-title"><h2 id="customer-preferences-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Customer preferences</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Preferred contact" className="jx-select-field jx-field-select" value={pref} onChange={(value) => setPref(value as typeof pref)} options={(['Phone', 'Email', 'WhatsApp'] as const).map((value) => ({ id: value, label: value }))} /><Field label="Budget (USD)"><JXNumberField label="" value={Number(budget) || 0} min={0} max={1_000_000_000} step={500} unit="USD" onChange={(value) => setBudget(String(value))} /></Field><JXSelect label="Lead source" className="jx-select-field jx-field-select" value={leadSource} onChange={setLeadSource} options={['Walk-in', 'Website', 'Referral', 'Online ad', 'Phone'].map((value) => ({ id: value, label: value }))} /><Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={salesperson} onChange={setSalesperson} /></Field><div className="sm:col-span-2"><Field label="Notes"><JXTextField className="jx-text-field" label="" value={notes} onChange={setNotes} placeholder="What are they looking for?" /></Field></div></div></section>}
+    {createStep === 2 && <section aria-labelledby="customer-review-title"><h2 id="customer-review-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Review customer</h2><dl className="grid gap-3 rounded-xl border border-slate-200 p-4 text-sm dark:border-slate-700 sm:grid-cols-2"><div><dt className="text-slate-500 dark:text-slate-400">Name</dt><dd className="font-semibold">{name || '—'}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Phone</dt><dd>{phone || '—'}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Email</dt><dd className="break-all">{email || '—'}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Budget</dt><dd><Money value={Number(budget) || 0} /></dd></div><div><dt className="text-slate-500 dark:text-slate-400">Contact preference</dt><dd>{pref}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Lead source · Salesperson</dt><dd>{leadSource} · {salesperson || currentUser}</dd></div></dl></section>}
+  </WorkflowPage>
 
   const logInteraction = () => {
     if (!detailCustomer || !ixNotes.trim()) return
@@ -115,7 +144,7 @@ export default function CRM() {
       <PageHeader
         title="CRM"
         subtitle="Customers, leads and follow-ups — one record per customer, shared with deals and sales."
-        actions={[<JXButton key="new" variant="contained" size="sm" onClick={() => { setFormError(''); setShowNew(true) }}>+ New customer</JXButton>]}
+        actions={[<JXButton key="new" variant="contained" size="sm" onClick={openNewCustomer}>+ New customer</JXButton>]}
       />
       {feedback && <div role="status" aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"><span>{feedback}</span>{undoMove && <JXButton variant="text" size="sm" lockWidth={false} onClick={() => { moveLead(undoMove.leadId, undoMove.previousStage); setFeedback(`Lead restored to ${undoMove.previousStage}.`); setUndoMove(null) }}>Undo</JXButton>}</div>}
 
@@ -307,27 +336,6 @@ export default function CRM() {
           </JXCard>
                   </div>
       )}
-
-                  {showNew && (
-                    <Modal title="New customer" onClose={() => setShowNew(false)}>
-                      {formError && <div className="mb-3"><Alert severity="error" title="Check the form" description={formError} /></div>}
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Name *"><JXTextField className="jx-text-field" label="" value={name} onChange={setName} placeholder="Full name" /></Field>
-                        <Field label="Phone"><JXTextField className="jx-text-field" label="" value={phone} onChange={setPhone} placeholder="+971 …" /></Field>
-                        <Field label="Email"><JXTextField className="jx-text-field" label="" value={email} onChange={setEmail} placeholder="name@example.com" /></Field>
-                        <Field label="Address"><JXTextField className="jx-text-field" label="" value={address} onChange={setAddress} placeholder="Area, city" /></Field>
-                        <JXSelect label="Preferred contact" className="jx-select-field jx-field-select" value={pref} onChange={(v) => setPref(v as typeof pref)} options={(['Phone', 'Email', 'WhatsApp'] as const).map((p) => ({ id: p, label: p }))} />
-                        <Field label="Budget"><input className={inputCls} type="number" min="0" step="0.01" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="e.g. 26000" /></Field>
-                        <JXSelect label="Lead source" className="jx-select-field jx-field-select" value={leadSource} onChange={setLeadSource} options={['Walk-in', 'Website', 'Referral', 'Online ad', 'Phone'].map((s) => ({ id: s, label: s }))} />
-                        <Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={salesperson} onChange={setSalesperson} /></Field>
-                        <div className="sm:col-span-2"><Field label="Notes"><JXTextField className="jx-text-field" label="" value={notes} onChange={setNotes} placeholder="What are they looking for?" /></Field></div>
-                      </div>
-                      <div className="mt-5 flex flex-wrap justify-end gap-2">
-                        <JXButton variant="outlined" onClick={() => setShowNew(false)}>Cancel</JXButton>
-                        <JXButton variant="contained" onClick={submitCustomer}>Add customer</JXButton>
-                      </div>
-                    </Modal>
-                  )}
                 </>
                 )
 }

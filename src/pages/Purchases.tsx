@@ -1,32 +1,40 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import {JXButton} from '../components/JXUI'
 // Purchases — acquisition list + "Record purchase" (recordPurchase atomically
 // creates vehicle + purchase + payment/journal + inventory entry).
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/store'
 import { fmtMoney, type Purchase } from '../store/types'
 import {
-  Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal,
-  Money, PageHeader, selectCls, StatusChip, TableScrollHint, usePagination,
+  Alert, EmptyState, ExportButton, Field, inputCls, KpiCard,
+  Money, PageHeader, StatusChip, TableScrollHint, usePagination,
 } from '../components/ui'
+import { JXNumberField, JXSelect } from '../components/JXUI'
+import { WorkflowPage, type WorkflowStep } from '../components/WorkflowPage'
 
 const today = () => new Date().toISOString().slice(0, 10)
+const CURRENT_YEAR = new Date().getFullYear()
 const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export default function Purchases() {
   const { state, recordPurchase } = useStore()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [open, setOpen] = useState(false)
-  const modalOpen = open || searchParams.get('new') === '1'
-  const closeModal = () => {
-    setOpen(false)
-    if (searchParams.get('new')) setSearchParams({}, { replace: true })
+  const location = useLocation()
+  const navigate = useNavigate()
+  const newPage = location.pathname.endsWith('/purchases/new') || searchParams.get('new') === '1'
+  const [step, setStep] = useState(0)
+  const openPurchasePage = () => { setError(null); setStep(0); navigate('/purchases/new', { state: { from: `${location.pathname}${location.search}` } }) }
+  const closePurchasePage = () => {
+    const from = (location.state as { from?: string } | null)?.from
+    navigate(from && from.startsWith('/purchases') && !from.includes('/new') ? from : '/purchases', { replace: true })
+    if (searchParams.has('new')) setSearchParams({}, { replace: true })
   }
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(() => (location.state as { purchaseSuccess?: string } | null)?.purchaseSuccess ?? null)
   const [search, setSearch] = useState('')
 
   const vehicleById = useMemo(() => new Map(state.vehicles.map((v) => [v.id, v])), [state.vehicles])
@@ -67,8 +75,8 @@ export default function Purchases() {
     taxes: '', transportEstimate: '', paymentMethod: 'Bank transfer', paymentStatus: 'Paid',
     purchaseDate: today(), askingPrice: '', minPrice: '',
   }))
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
-    setF((prev) => ({ ...prev, [k]: e.target.value }))
+  const setText = (k: keyof typeof f, value: string) => setF((prev) => ({ ...prev, [k]: value }))
+  const setAmount = (k: 'price' | 'buyerFees' | 'auctionFees' | 'taxes' | 'transportEstimate' | 'askingPrice' | 'minPrice' | 'mileage' | 'year', value: number) => setText(k, String(value))
 
   const submit = () => {
     setError(null)
@@ -80,6 +88,11 @@ export default function Purchases() {
     }
     const year = Number(f.year) || new Date().getFullYear()
     const price = num(f.price)
+    if (price <= 0 || [f.buyerFees, f.auctionFees, f.taxes, f.transportEstimate, f.askingPrice, f.minPrice, f.mileage].some((value) => value !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0))) {
+      setError('Enter a vehicle price above zero and non-negative numeric values for costs and prices.')
+      setStep(2)
+      return
+    }
     const purchase: Omit<Purchase, 'id' | 'ref' | 'createdAt'> = {
       vehicleId: '', // assigned by the store
       seller: f.seller.trim(),
@@ -119,10 +132,56 @@ export default function Purchases() {
     }
     const res = recordPurchase(purchase, vehicle)
     if (!res.ok) { setError(res.error ?? 'Could not record the purchase.'); return }
-    setSuccess(`Purchase recorded — vehicle ${nextStock} (${year} ${vehicle.make} ${vehicle.model}) created and added to inventory.`)
-    closeModal()
+    const successMessage = `Purchase recorded — vehicle ${nextStock} (${year} ${vehicle.make} ${vehicle.model}) created and added to inventory.`
+    setSuccess(successMessage)
     setF({ ...f, seller: '', auction: '', vin: '', make: '', model: '', trim: '', mileage: '', price: '', buyerFees: '', auctionFees: '', taxes: '', transportEstimate: '', askingPrice: '', minPrice: '' })
+    setStep(0)
+    navigate('/purchases', { replace: true, state: { purchaseSuccess: successMessage } })
   }
+
+  const purchaseSteps: WorkflowStep[] = [
+    { id: 'source', label: 'Source', description: 'Seller and acquisition source' },
+    { id: 'vehicle', label: 'Vehicle', description: 'Identify the vehicle for inventory' },
+    { id: 'costs', label: 'Costs', description: 'Enter acquisition costs and payment' },
+    { id: 'review', label: 'Review', description: 'Confirm the purchase before posting' },
+  ]
+  const validatePurchaseStep = () => {
+    setError(null)
+    if (step === 0 && (!f.seller.trim() || !f.purchaseDate)) { setError('Seller and purchase date are required.'); return false }
+    if (step === 1 && (!f.vin.trim() || !f.make.trim() || !f.model.trim() || f.vin.trim().length < 11 || f.vin.trim().length > 17)) {
+      setError('Enter a VIN (11–17 characters), make, and model to continue.'); return false
+    }
+    if (step === 2 && (num(f.price) <= 0 || [f.buyerFees, f.auctionFees, f.taxes, f.transportEstimate, f.askingPrice, f.minPrice].some((value) => value !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0)))) {
+      setError('Vehicle price must be above zero. Optional costs and prices must be zero or greater.'); return false
+    }
+    return true
+  }
+  const advancePurchaseStep = () => { if (validatePurchaseStep()) setStep((current) => Math.min(purchaseSteps.length - 1, current + 1)) }
+
+  if (newPage) return (
+    <WorkflowPage title={`Record purchase · ${nextStock}`} subtitle="Add the acquisition and its new inventory vehicle in four guided steps." steps={purchaseSteps} step={step} onStepChange={setStep} onCancel={closePurchasePage} onBack={() => setStep((current) => Math.max(0, current - 1))} onNext={advancePurchaseStep} onSubmit={submit} submitLabel="Record purchase" error={error}>
+      {step === 0 && <section aria-labelledby="purchase-source-title"><h2 id="purchase-source-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Seller and acquisition</h2><div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Seller *"><JXTextField label="" className="jx-text-field" value={f.seller} onChange={(value) => setText('seller', value)} placeholder="e.g. Metro Auto Auction" /></Field>
+        <Field label="Auction or lane"><JXTextField label="" className="jx-text-field" value={f.auction} onChange={(value) => setText('auction', value)} placeholder="Optional" /></Field>
+        <JXSelect label="Purchase source" className="jx-select-field jx-field-select" value={f.source} options={['Auction', 'Wholesale', 'Private seller', 'Trade-in', 'Other dealer'].map((value) => ({ id: value, label: value }))} onChange={(value) => setText('source', value)} />
+        <Field label="Purchase date"><input type="date" className={inputCls} value={f.purchaseDate} onChange={(event) => setText('purchaseDate', event.target.value)} /></Field>
+      </div></section>}
+      {step === 1 && <section aria-labelledby="purchase-vehicle-title"><h2 id="purchase-vehicle-title" className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">Vehicle identity</h2><p className="mb-4 text-sm text-slate-500 dark:text-slate-400">A unique VIN is required to add this vehicle to inventory.</p><div className="grid gap-4 sm:grid-cols-2">
+        <Field label="VIN *" hint={`${f.vin.trim().length}/17 characters`}><JXTextField label="" className="jx-text-field" value={f.vin} onChange={(value) => setText('vin', value.toUpperCase())} placeholder="17-character VIN" maxLength={17} /></Field>
+        <Field label="Year"><JXNumberField label="" unit="" value={Number(f.year)} min={1886} max={CURRENT_YEAR + 2} step={1} onChange={(value) => setAmount('year', value)} /></Field>
+        <Field label="Make *"><JXTextField label="" className="jx-text-field" value={f.make} onChange={(value) => setText('make', value)} placeholder="e.g. Honda" /></Field>
+        <Field label="Model *"><JXTextField label="" className="jx-text-field" value={f.model} onChange={(value) => setText('model', value)} placeholder="e.g. Accord" /></Field>
+        <Field label="Trim"><JXTextField label="" className="jx-text-field" value={f.trim} onChange={(value) => setText('trim', value)} placeholder="Optional" /></Field>
+        <Field label="Mileage"><JXNumberField label="" value={num(f.mileage)} min={0} max={2_000_000} step={1000} unit="mi" onChange={(value) => setAmount('mileage', value)} /></Field>
+      </div></section>}
+      {step === 2 && <section aria-labelledby="purchase-costs-title"><h2 id="purchase-costs-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Costs and payment</h2><div className="grid gap-4 sm:grid-cols-2">
+        {([['price','Vehicle price (USD) *',100],['buyerFees','Buyer fees (USD)',25],['auctionFees','Auction fees (USD)',25],['taxes','Taxes (USD)',25],['transportEstimate','Transport estimate (USD)',25],['askingPrice','Asking price (USD)',100],['minPrice','Minimum price (USD)',100]] as const).map(([key,label,stepBy]) => <Field key={key} label={label} hint={key === 'askingPrice' ? 'Leave at 0 to use vehicle price × 1.25.' : key === 'minPrice' ? 'Leave at 0 to use vehicle price × 1.15.' : undefined}><JXNumberField label="" value={num(f[key])} min={0} max={1_000_000_000} step={stepBy} unit="USD" onChange={(value) => setAmount(key, value)} /></Field>)}
+        <JXSelect label="Payment method" className="jx-select-field jx-field-select" value={f.paymentMethod} options={['Bank transfer', 'Cash', 'Card', 'Floorplan', 'Finance'].map((value) => ({ id: value, label: value }))} onChange={(value) => setText('paymentMethod', value)} />
+        <JXSelect label="Payment status" className="jx-select-field jx-field-select" value={f.paymentStatus} options={['Paid', 'Partial', 'Unpaid'].map((value) => ({ id: value, label: value }))} onChange={(value) => setText('paymentStatus', value)} />
+      </div></section>}
+      {step === 3 && <section aria-labelledby="purchase-review-title"><h2 id="purchase-review-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Review acquisition</h2><div className="grid gap-4 sm:grid-cols-2"><div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><h3 className="font-semibold text-slate-900 dark:text-white">Vehicle</h3><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{f.year} {f.make} {f.model} {f.trim}</p><p className="text-sm text-slate-500 dark:text-slate-400">{nextStock} · VIN {f.vin}</p></div><div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><h3 className="font-semibold text-slate-900 dark:text-white">Purchase</h3><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{f.seller} · {f.purchaseDate} · {f.paymentStatus}</p><p className="mt-2 text-sm">Vehicle price <Money value={num(f.price)} /> · Fees and taxes <Money value={num(f.buyerFees) + num(f.auctionFees) + num(f.taxes)} /></p><p className="mt-1 font-semibold">Total acquisition <Money value={num(f.price) + num(f.buyerFees) + num(f.auctionFees) + num(f.taxes)} /></p></div></div><p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Submitting creates the inventory vehicle, purchase record, any payment and journal entries together. The store rejects duplicate VINs.</p></section>}
+    </WorkflowPage>
+  )
 
   return (
     <>
@@ -141,7 +200,7 @@ export default function Purchases() {
                 PaymentMethod: p.paymentMethod, PaymentStatus: p.paymentStatus,
               }
             })} />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpen(true) }}>
+            <JXButton variant="contained" size="sm" onClick={openPurchasePage}>
               <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record purchase</span>
             </JXButton>
           </>
@@ -162,12 +221,12 @@ export default function Purchases() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No purchases found" detail="Adjust the search, or record a purchase to add the first acquisition." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpen(true)}>Record purchase</JXButton>} />
+        <EmptyState title="No purchases found" detail="Adjust the search, or record a purchase to add the first acquisition." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={openPurchasePage}>Record purchase</JXButton>} />
       ) : (
         <>
           <TableScrollHint />
           <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <ResponsiveTable><table className="w-full min-w-[900px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   <th className="px-4 py-3">Ref</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Vehicle</th>
@@ -204,76 +263,11 @@ export default function Purchases() {
                   )
                 })}
               </tbody>
-            </table>
+            </table></ResponsiveTable>
           </div>
         </>
       )}
       {controls}
-
-      {modalOpen && (
-        <Modal title={`Record purchase — new stock ${nextStock}`} onClose={closeModal} wide>
-          {error && <div className="mb-4"><Alert severity="error" title="Could not record purchase" description={error} /></div>}
-          <div className="space-y-5">
-            <div>
-              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Seller &amp; Acquisition</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Seller *"><input className={inputCls} value={f.seller} onChange={set('seller')} placeholder="e.g. Metro Auto Auction" /></Field>
-                <Field label="Auction"><input className={inputCls} value={f.auction} onChange={set('auction')} placeholder="e.g. Metro Lane 4" /></Field>
-                <Field label="Source">
-                  <select className={selectCls} value={f.source} onChange={set('source')}>
-                    {['Auction', 'Wholesale', 'Private seller', 'Trade-in', 'Other dealer'].map((s) => <option key={s}>{s}</option>)}
-                  </select>
-                </Field>
-                <Field label="Purchase date"><input type="date" className={inputCls} value={f.purchaseDate} onChange={set('purchaseDate')} /></Field>
-              </div>
-            </div>
-
-              <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Vehicle Identity</p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="VIN *" hint={`${f.vin.trim().length}/17 characters`}><input className={inputCls} value={f.vin} onChange={set('vin')} placeholder="17-character VIN" maxLength={17} /></Field>
-                  <Field label="Year"><input type="number" className={inputCls} value={f.year} onChange={set('year')} /></Field>
-                  <Field label="Make *"><input className={inputCls} value={f.make} onChange={set('make')} placeholder="e.g. Honda" /></Field>
-                  <Field label="Model *"><input className={inputCls} value={f.model} onChange={set('model')} placeholder="e.g. Accord" /></Field>
-                  <Field label="Trim"><input className={inputCls} value={f.trim} onChange={set('trim')} placeholder="e.g. Sport" /></Field>
-                  <Field label="Mileage"><input type="number" min="0" className={inputCls} value={f.mileage} onChange={set('mileage')} placeholder="0" /></Field>
-                </div>
-              </div>
-
-                <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pricing, Fees &amp; Payment</p>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Vehicle price (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={f.price} onChange={set('price')} placeholder="0.00" /></Field>
-                    <Field label="Buyer fees (USD)"><input type="number" min="0" step="0.01" className={inputCls} value={f.buyerFees} onChange={set('buyerFees')} placeholder="0.00" /></Field>
-                    <Field label="Auction fees (USD)"><input type="number" min="0" step="0.01" className={inputCls} value={f.auctionFees} onChange={set('auctionFees')} placeholder="0.00" /></Field>
-                    <Field label="Taxes (USD)"><input type="number" min="0" step="0.01" className={inputCls} value={f.taxes} onChange={set('taxes')} placeholder="0.00" /></Field>
-                    <Field label="Transport estimate (USD)"><input type="number" min="0" step="0.01" className={inputCls} value={f.transportEstimate} onChange={set('transportEstimate')} placeholder="0.00" /></Field>
-                    <Field label="Asking price (USD) — defaults to price × 1.25"><input type="number" min="0" step="0.01" className={inputCls} value={f.askingPrice} onChange={set('askingPrice')} placeholder="Auto" /></Field>
-                    <Field label="Minimum price (USD) — defaults to price × 1.15"><input type="number" min="0" step="0.01" className={inputCls} value={f.minPrice} onChange={set('minPrice')} placeholder="Auto" /></Field>
-                    <Field label="Payment method">
-                      <select className={selectCls} value={f.paymentMethod} onChange={set('paymentMethod')}>
-                        {['Bank transfer', 'Cash', 'Card', 'Floorplan', 'Finance'].map((m) => <option key={m}>{m}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Payment status">
-                      <select className={selectCls} value={f.paymentStatus} onChange={set('paymentStatus')}>
-                        {['Paid', 'Partial', 'Unpaid'].map((m) => <option key={m}>{m}</option>)}
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-              </div>
-                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-                  Total acquisition cost: {fmtMoney(num(f.price) + num(f.buyerFees) + num(f.auctionFees) + num(f.taxes))}.
-                  Recording creates the vehicle ({nextStock}), the purchase, the payment and the journal entry in one step.
-                  A VIN that already exists is rejected by the store.
-                </p>
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <JXButton variant="outlined" size="sm" onClick={closeModal}>Cancel</JXButton>
-                  <JXButton variant="contained" size="sm" onClick={submit}>Record purchase</JXButton>
-                </div>
-              </Modal>
-      )}
             </>
             )
 }

@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import {JXButton, JXSelect} from '../components/JXUI'
 // Transportation — transport orders, status advance, delivery documents.
 // Delivering an order (store updateTransport) adds its price to the vehicle
@@ -135,7 +136,7 @@ export default function Transportation() {
         <>
           <TableScrollHint />
           <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <ResponsiveTable><table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   <th className="px-4 py-3">Vehicle</th><th className="px-4 py-3">Carrier / Driver</th>
@@ -202,7 +203,7 @@ export default function Transportation() {
                   )
                 })}
               </tbody>
-            </table>
+            </table></ResponsiveTable>
           </div>
         </>
       )}

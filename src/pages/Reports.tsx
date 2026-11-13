@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 
 import { useStore } from '../store/store'
@@ -229,7 +230,7 @@ export default function Reports() {
                 <>
                   <TableScrollHint />
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-sm">
+                    <ResponsiveTable><table className="w-full min-w-[720px] text-sm">
                       <thead><tr>{result.columns.map((c) => <th key={c} className={thCls}>{c.replace(/_/g, ' ')}</th>)}</tr></thead>
                       <tbody>
                         {result.rows.map((row, i) => (
@@ -242,7 +243,7 @@ export default function Reports() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></ResponsiveTable>
                   </div>
                 </>
                     )

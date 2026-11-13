@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import {JXAlert, JXButton, JXCard, JXChip} from '../components/JXUI'
 // MCP integration — documentation + in-app tool registry.
 //
@@ -50,7 +51,7 @@ function ToolTable({ tools }: { tools: Tool[] }) {
               <>
                 <TableScrollHint />
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-sm">
+                  <ResponsiveTable><table className="w-full min-w-[720px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                         <th className="py-2 pr-3">Tool</th>
@@ -71,7 +72,7 @@ function ToolTable({ tools }: { tools: Tool[] }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></ResponsiveTable>
       </div>
       </>
       )

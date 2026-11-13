@@ -1,17 +1,21 @@
-import {JXButton, JXCard, JXProgress, JXSelect} from '../components/JXUI'
+import ResponsiveTable from '../components/ResponsiveTable'
+import {JXButton, JXCard, JXNumberField, JXProgress, JXSelect} from '../components/JXUI'
 // Reconditioning — recon jobs grouped by vehicle, with the vehicle's linked
 // expenses shown alongside each group. Jobs can be created and advanced
 // from this page via the store's addReconJob / updateReconJob actions;
 // costs are recorded as linked Direct expenses (recordExpense).
 import { useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Plus, Wrench } from 'lucide-react'
+import { AppTextField as JXTextField } from '../components/AppTextField'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type ExpenseCategory, type ReconJob } from '../store/types'
 import {
   Alert, EmptyState, Field, inputCls, KpiCard, Modal,
   Money, PageHeader, selectCls, StatusChip, TableScrollHint,
 } from '../components/ui'
+import { WorkflowPage, type WorkflowStep } from '../components/WorkflowPage'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const num = (v: string) => (v === '' ? 0 : Number(v))
@@ -20,12 +24,15 @@ const JOB_STATUSES: ReconJob['status'][] = ['Not started', 'In progress', 'Done'
 
 export default function Reconditioning() {
   const { state, recordExpense, addReconJob, updateReconJob } = useStore()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const newPage = location.pathname.endsWith('/reconditioning/new')
+  const [createStep, setCreateStep] = useState(0)
   const [statusFilter, setStatusFilter] = useState('All')
   const [expenseJob, setExpenseJob] = useState<ReconJob | null>(null)
-  const [newJobOpen, setNewJobOpen] = useState(false)
   const [nf, setNf] = useState({ vehicleId: '', title: '', category: 'Mechanical repairs' as ExpenseCategory, technician: '', estimatedCost: '', notes: '' })
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(() => (location.state as { reconSuccess?: string } | null)?.reconSuccess ?? null)
 
   const vehicleById = useMemo(() => new Map(state.vehicles.map((v) => [v.id, v])), [state.vehicles])
 
@@ -101,7 +108,8 @@ export default function Reconditioning() {
   const openNewJob = () => {
     setError(null)
     setNf({ vehicleId: state.vehicles[0]?.id ?? '', title: '', category: 'Mechanical repairs', technician: '', estimatedCost: '', notes: '' })
-    setNewJobOpen(true)
+    setCreateStep(0)
+    navigate('/reconditioning/new', { state: { from: `${location.pathname}${location.search}` } })
   }
   const submitNewJob = () => {
     if (!nf.vehicleId) { setError('Pick a vehicle.'); return }
@@ -120,9 +128,31 @@ export default function Reconditioning() {
       notes: nf.notes.trim(),
     })
     const v = vehicleById.get(nf.vehicleId)
-    setSuccess(`Recon job "${nf.title.trim()}" created for ${v?.stockNumber ?? ''}.`)
-    setNewJobOpen(false)
+    const successMessage = `Recon job "${nf.title.trim()}" created for ${v?.stockNumber ?? ''}.`
+    setSuccess(successMessage)
+    navigate('/reconditioning', { replace: true, state: { reconSuccess: successMessage } })
   }
+
+  const jobSteps: WorkflowStep[] = [
+    { id: 'vehicle', label: 'Vehicle', description: 'Select the vehicle and describe the work' },
+    { id: 'assignment', label: 'Assignment', description: 'Choose the work category and technician' },
+    { id: 'estimate', label: 'Estimate', description: 'Set the estimated cost and review the job' },
+  ]
+  const validateJobStep = () => {
+    setError(null)
+    if (createStep === 0 && (!nf.vehicleId || !nf.title.trim())) { setError('Choose a vehicle and enter a job title.'); return false }
+    if (createStep === 2 && (!nf.estimatedCost || !Number.isFinite(Number(nf.estimatedCost)) || num(nf.estimatedCost) < 0)) { setError('Estimated cost must be zero or greater.'); return false }
+    return true
+  }
+  const cancelNewJob = () => {
+    const from = (location.state as { from?: string } | null)?.from
+    navigate(from && from.startsWith('/reconditioning') && !from.endsWith('/new') ? from : '/reconditioning', { replace: true })
+  }
+  if (newPage) return <WorkflowPage title="New recon job" subtitle="Plan a reconditioning job and its estimated cost in three steps." steps={jobSteps} step={createStep} onStepChange={setCreateStep} onCancel={cancelNewJob} onBack={() => setCreateStep((current) => Math.max(0, current - 1))} onNext={() => { if (validateJobStep()) setCreateStep((current) => Math.min(jobSteps.length - 1, current + 1)) }} onSubmit={submitNewJob} submitLabel="Create job" error={error}>
+    {createStep === 0 && <section aria-labelledby="recon-vehicle-title"><h2 id="recon-vehicle-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Choose vehicle and job</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Vehicle *" className="jx-select-field jx-field-select sm:col-span-2" searchable value={nf.vehicleId} onChange={(value) => setNf((current) => ({ ...current, vehicleId: value }))} options={state.vehicles.map((v) => ({ id: v.id, label: `${v.stockNumber} — ${v.year} ${v.make} ${v.model}` }))} /><Field label="Job title *"><JXTextField label="" className="jx-text-field" value={nf.title} onChange={(value) => setNf((current) => ({ ...current, title: value }))} placeholder="e.g. Brake service" /></Field></div></section>}
+    {createStep === 1 && <section aria-labelledby="recon-assignment-title"><h2 id="recon-assignment-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Work assignment</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Category" className="jx-select-field jx-field-select" value={nf.category} onChange={(value) => setNf((current) => ({ ...current, category: value as ExpenseCategory }))} options={EXPENSE_CATEGORIES.map((category) => ({ id: category, label: category }))} /><Field label="Technician"><JXTextField label="" className="jx-text-field" value={nf.technician} onChange={(value) => setNf((current) => ({ ...current, technician: value }))} placeholder="Leave blank to assign later" /></Field></div></section>}
+    {createStep === 2 && <section aria-labelledby="recon-estimate-title"><h2 id="recon-estimate-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Estimate and review</h2><div className="grid gap-4 sm:grid-cols-2"><Field label="Estimated cost (USD) *"><JXNumberField label="" value={Number(nf.estimatedCost) || 0} min={0} max={1_000_000_000} step={50} unit="USD" onChange={(value) => setNf((current) => ({ ...current, estimatedCost: String(value) }))} /></Field><Field label="Notes"><JXTextField label="" className="jx-text-field" value={nf.notes} onChange={(value) => setNf((current) => ({ ...current, notes: value }))} placeholder="Work instructions or context" /></Field></div><div className="mt-4 rounded-xl border border-slate-200 p-4 text-sm dark:border-slate-700"><p className="font-semibold text-slate-900 dark:text-white">{nf.title || 'New job'} · {vehicleById.get(nf.vehicleId)?.stockNumber ?? 'Select a vehicle'}</p><p className="mt-1 text-slate-500 dark:text-slate-400">{nf.category} · {nf.technician || 'Unassigned'} · estimated {fmtMoney(num(nf.estimatedCost))}</p></div></section>}
+  </WorkflowPage>
 
   // Advance a job one step: Not started → In progress → Done.
   const advance = (j: ReconJob) => {
@@ -186,7 +216,7 @@ export default function Reconditioning() {
 
                     <TableScrollHint />
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[640px] text-left text-sm">
+                      <ResponsiveTable><table className="w-full min-w-[640px] text-left text-sm">
                         <thead>
                             <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
                               <th className="px-3 py-2">Job</th><th className="px-3 py-2">Category</th>
@@ -229,7 +259,7 @@ export default function Reconditioning() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></ResponsiveTable>
                   </div>
 
                   <div className="mt-4">
@@ -259,34 +289,6 @@ export default function Reconditioning() {
           })}
                     </div>
       )}
-
-                    {newJobOpen && (
-                      <Modal title="New recon job" onClose={() => setNewJobOpen(false)}>
-                        {error && <div className="mb-4"><Alert severity="error" title="Could not create job" description={error} /></div>}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <Field label="Vehicle *">
-                            <select className={selectCls} value={nf.vehicleId} onChange={(e) => setNf((p) => ({ ...p, vehicleId: e.target.value }))}>
-                              {state.vehicles.map((v) => (
-                                <option key={v.id} value={v.id}>{v.stockNumber} — {v.year} {v.make} {v.model}</option>
-                              ))}
-                            </select>
-                          </Field>
-                          <Field label="Job title *"><input className={inputCls} value={nf.title} onChange={(e) => setNf((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Brake service" /></Field>
-                          <Field label="Category">
-                            <select className={selectCls} value={nf.category} onChange={(e) => setNf((p) => ({ ...p, category: e.target.value as ExpenseCategory }))}>
-                              {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                            </select>
-                          </Field>
-                          <Field label="Technician"><input className={inputCls} value={nf.technician} onChange={(e) => setNf((p) => ({ ...p, technician: e.target.value }))} placeholder="e.g. M. Rahimi" /></Field>
-                          <Field label="Estimated cost (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={nf.estimatedCost} onChange={(e) => setNf((p) => ({ ...p, estimatedCost: e.target.value }))} /></Field>
-                          <Field label="Notes"><input className={inputCls} value={nf.notes} onChange={(e) => setNf((p) => ({ ...p, notes: e.target.value }))} /></Field>
-                        </div>
-                        <div className="mt-5 flex flex-wrap justify-end gap-2">
-                          <JXButton variant="outlined" size="sm" onClick={() => setNewJobOpen(false)}>Cancel</JXButton>
-                          <JXButton variant="contained" size="sm" onClick={submitNewJob}>Create job</JXButton>
-                        </div>
-                      </Modal>
-                    )}
 
                     {expenseJob && (
                       <Modal

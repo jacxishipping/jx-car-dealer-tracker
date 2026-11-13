@@ -336,6 +336,48 @@ input[aria-label='Filter select options']:focus {
 #root .jx-app-stepper--progress-only > div:last-child { display: none; }
 #root .jx-vehicle-wizard-card { max-width: 100%; }
 
+/* Data tables keep their full desktop layout and become labeled record cards
+   on phone and tablet widths without changing each page's row actions. */
+#root .jx-responsive-table__cards { display: none; }
+#root .jx-responsive-table__card {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-control);
+  background: #fff;
+  padding: 0.875rem;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+}
+#root .jx-responsive-table__card-title { min-width: 0; }
+#root .jx-responsive-table__eyebrow {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+#root .jx-responsive-table__primary-value { min-width: 0; font-weight: 650; overflow-wrap: anywhere; }
+#root .jx-responsive-table__fields { display: grid; gap: 0.5rem; margin: 0.75rem 0 0; }
+#root .jx-responsive-table__field { display: grid; grid-template-columns: minmax(6.25rem, 0.7fr) minmax(0, 1fr); gap: 0.75rem; border-top: 1px solid #f1f5f9; padding-top: 0.5rem; font-size: 0.8125rem; }
+#root .jx-responsive-table__field dt { color: #64748b; }
+#root .jx-responsive-table__field dd { min-width: 0; margin: 0; overflow-wrap: anywhere; text-align: right; }
+#root .jx-responsive-table__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid #f1f5f9; padding-top: 0.5rem; }
+.dark #root .jx-responsive-table__card { border-color: #334155; background: var(--color-surface-dark); color: #f8fafc; }
+.dark #root .jx-responsive-table__eyebrow,
+.dark #root .jx-responsive-table__field dt { color: #94a3b8; }
+.dark #root .jx-responsive-table__field,
+.dark #root .jx-responsive-table__actions { border-color: #334155; }
+
+@media (max-width: 1023px) {
+  #root .jx-responsive-table__desktop { display: none; }
+  #root .jx-responsive-table__cards { display: grid; gap: 0.625rem; min-width: 0; }
+  #root .jx-responsive-table__field { grid-template-columns: minmax(5.75rem, 0.65fr) minmax(0, 1fr); }
+  #root .jx-responsive-table__actions button { min-height: 2.75rem; }
+}
+
 @media (max-width: 639px) {
   #root .jx-app-button { min-height: 2.75rem; }
   #root .jx-app-select [role='listbox'] { max-width: calc(100vw - 2rem); }

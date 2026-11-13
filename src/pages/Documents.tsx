@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -102,7 +103,7 @@ export default function Documents() {
           <>
               <TableScrollHint />
               <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                <table className="w-full min-w-[640px] text-sm">
+                <ResponsiveTable><table className="w-full min-w-[640px] text-sm">
                   <thead><tr><th className={thCls}>Title</th><th className={thCls}>Type</th><th className={thCls}>Linked to</th><th className={thCls}>File</th><th className={thCls}>Size</th><th className={thCls}>Uploaded</th><th className={thCls}>Expires</th><th className={thCls}>Access role</th></tr></thead>
                   <tbody>
                     {pageItems.map((d) => (
@@ -122,7 +123,7 @@ export default function Documents() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></ResponsiveTable>
               </div>
               {controls}
             </>

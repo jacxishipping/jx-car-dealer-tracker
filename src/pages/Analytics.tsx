@@ -1,3 +1,4 @@
+import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo } from 'react'
 
 import { useStore } from '../store/store'
@@ -184,7 +185,7 @@ export default function Analytics() {
               <>
                 <TableScrollHint />
                 <div className="overflow-x-auto">
-                  <table className={tableCls}>
+                  <ResponsiveTable><table className={tableCls}>
                     <thead><tr><th className={thCls}>Salesperson</th><th className={`${thCls} text-right`}>Deals</th><th className={`${thCls} text-right`}>Revenue</th><th className={`${thCls} text-right`}>Realised profit</th><th className={`${thCls} text-right`}>Avg profit / deal</th></tr></thead>
                     <tbody>
                       {bySalesperson.map((s) => (
@@ -197,7 +198,7 @@ export default function Analytics() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ResponsiveTable>
                 </div>
               </>
             )}
