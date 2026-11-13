@@ -1,6 +1,7 @@
 // JX Car Dealer Tracker — app shell.
 // HashRouter is used deliberately: the built app is served as static files,
 // so deep links must work without server-side SPA fallback.
+import { useState } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { JXThemeProvider } from '@jacxishippingorg/jx-ui-react'
 import { StoreProvider } from './store/store'
@@ -32,12 +33,13 @@ function NotFound() {
 }
 
 export default function App() {
+  const [hasToken, setHasToken] = useState(() => Boolean(getToken()))
   // API mode (VITE_API_URL is set): no token, no app shell — sign in first.
   // Demo mode (VITE_API_URL unset): behaviour is unchanged, no login ever.
-  if (API_MODE && !getToken()) {
+  if (API_MODE && !hasToken) {
     return (
       <JXThemeProvider defaultMode="light">
-        <LoginScreen />
+        <LoginScreen onAuthenticated={() => setHasToken(true)} />
       </JXThemeProvider>
     )
   }

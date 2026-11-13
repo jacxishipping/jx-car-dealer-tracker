@@ -3,7 +3,7 @@ import { JXButton, JXCard } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { accountBalance, daysInStock, partStock, partValue, totalCash, vehicleAllInCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { EmptyState, ExportButton, Field, inputCls, PageHeader } from '../components/ui'
+import { EmptyState, ExportButton, Field, inputCls, PageHeader, TableScrollHint } from '../components/ui'
 
 type Row = Record<string, string | number | null | undefined>
 
@@ -27,15 +27,15 @@ const REPORTS = [
 
 type ReportId = (typeof REPORTS)[number]['id']
 
-const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800'
-const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-800 dark:text-slate-300'
+const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400'
+const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-700 dark:text-slate-300'
 const inRange = (date: string, from: string, to: string) => date >= from && date <= to
 
 export default function Reports() {
   const { state } = useStore()
   const [selected, setSelected] = useState<ReportId>('inventory')
   const [from, setFrom] = useState('2026-01-01')
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10))
+  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [month, setMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -192,7 +192,7 @@ export default function Reports() {
 
         <section>
           <JXCard title={def.label} kicker="Report" description={def.desc}
-            className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
             <div className="mb-4 flex flex-wrap items-end gap-3">
               {selected === 'pnl' ? (
                 <Field label="Month">
@@ -213,34 +213,39 @@ export default function Reports() {
 
             <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {result.summary.map((s) => (
-                <div key={s.label} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
-                  <p className="font-mono text-lg font-semibold text-slate-900 dark:text-white">{s.value}</p>
-                </div>
+                  <div key={s.label} className="rounded-[var(--radius-control)] bg-slate-50 px-3 py-2 dark:bg-slate-900">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{s.label}</p>
+                    <p className="font-mono text-lg font-semibold text-slate-900 dark:text-white">{s.value}</p>
+                  </div>
               ))}
-            </div>
-            {result.note && <p className="mb-3 text-xs text-slate-500">{result.note}</p>}
-
-            {result.rows.length === 0
-              ? <EmptyState title="No rows for this report" detail="Nothing in the data matches the selected report and period." />
-              : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead><tr>{result.columns.map((c) => <th key={c} className={thCls}>{c.replace(/_/g, ' ')}</th>)}</tr></thead>
-                    <tbody>
-                      {result.rows.map((row, i) => (
-                        <tr key={i}>
-                          {result.columns.map((c) => (
-                            <td key={c} className={`${tdCls} ${typeof row[c] === 'number' ? 'font-mono' : ''}`}>
-                              {typeof row[c] === 'number' && isMoneyCol(c) ? fmtMoney(row[c] as number) : String(row[c] ?? '—')}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
-              )}
+            { result.note && <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{result.note}</p> }
+
+            {
+                  result.rows.length === 0
+                    ? <EmptyState title="No rows for this report" detail="Nothing in the data matches the selected report and period." />
+                    : (
+                <>
+                  <TableScrollHint />
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead><tr>{result.columns.map((c) => <th key={c} className={thCls}>{c.replace(/_/g, ' ')}</th>)}</tr></thead>
+                      <tbody>
+                        {result.rows.map((row, i) => (
+                          <tr key={i}>
+                            {result.columns.map((c) => (
+                              <td key={c} className={`${tdCls} ${typeof row[c] === 'number' ? 'font-mono' : ''}`}>
+                                {typeof row[c] === 'number' && isMoneyCol(c) ? fmtMoney(row[c] as number) : String(row[c] ?? '—')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+                    )
+                }
           </JXCard>
         </section>
       </div>

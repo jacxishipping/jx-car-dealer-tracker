@@ -6,7 +6,7 @@ import { useStore } from '../store/store'
 import type { Vehicle, VehicleStatus } from '../store/types'
 import { VEHICLE_STATUSES } from '../store/types'
 import { daysInStock } from '../store/engine'
-import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, inputCls, usePagination } from '../components/ui'
+import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, TableScrollHint, inputCls, usePagination } from '../components/ui'
 
 type SortKey = 'price' | 'date' | 'mileage'
 
@@ -99,6 +99,7 @@ export default function Inventory() {
     <JXButton
       variant={sortKey === key ? 'contained' : 'outlined'}
       size="sm"
+      lockWidth={false}
       onClick={() => {
         if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
         else { setSortKey(key); setSortDir('desc') }
@@ -133,18 +134,19 @@ export default function Inventory() {
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
-          <JXTextField label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); reset() }} placeholder="e.g. CDT-101, Toyota…" />
+          <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); reset() }} placeholder="e.g. CDT-101, Toyota…" />
         </div>
         <div className="w-full sm:w-48">
           <JXSelect
             label="Status"
+            className="jx-select-field jx-field-select"
             options={[{ id: 'All', label: 'All statuses' }, ...VEHICLE_STATUSES.map((s) => ({ id: s, label: s }))]}
             value={statusFilter}
             onChange={(v) => { setStatusFilter(v); reset() }}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Sort</span>
           {sortButton('price', 'Price')}
           {sortButton('date', 'Date')}
           {sortButton('mileage', 'Mileage')}
@@ -155,104 +157,107 @@ export default function Inventory() {
         <EmptyState
           title="No vehicles match"
           detail={state.vehicles.length === 0 ? 'No vehicles in the tracker yet — add your first vehicle.' : 'Try a different search or status filter.'}
-          action={<JXButton variant="outlined" size="sm" onClick={() => { setQuery(''); setStatusFilter('All'); reset() }}>Clear filters</JXButton>}
+          action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setQuery(''); setStatusFilter('All'); reset() }}>Clear filters</JXButton>}
         />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-4 py-3">Stock</th>
-                <th className="px-4 py-3">Vehicle</th>
-                <th className="px-4 py-3">VIN</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Mileage</th>
-                <th className="px-4 py-3 text-right">Asking price</th>
-                <th className="px-4 py-3 text-right">Days in stock</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((v) => (
-                <tr
-                  key={v.id}
-                  onClick={() => navigate(`/inventory/${v.id}`)}
-                  className="cursor-pointer border-b border-slate-100 hover:bg-indigo-50/60 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800"
-                >
-                  <td className="px-4 py-3 font-mono font-semibold text-slate-900 dark:text-white">{v.stockNumber}</td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900 dark:text-white">{v.year} {v.make} {v.model}</span>
-                    <span className="block text-xs text-slate-500">{v.trim} · {v.extColor}</span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{v.vin}</td>
-                  <td className="px-4 py-3"><StatusChip value={v.status} /></td>
-                  <td className="px-4 py-3 text-right font-mono">{v.mileage.toLocaleString('en-US')}</td>
-                  <td className="px-4 py-3 text-right"><Money value={v.askingPrice} /></td>
-                  <td className="px-4 py-3 text-right font-mono">{daysInStock(v)}</td>
+        <>
+          <TableScrollHint />
+          <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th className="px-4 py-3">Stock</th>
+                  <th className="px-4 py-3">Vehicle</th>
+                  <th className="px-4 py-3">VIN</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Mileage</th>
+                  <th className="px-4 py-3 text-right">Asking price</th>
+                  <th className="px-4 py-3 text-right">Days in stock</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="px-4 py-3">{controls}</div>
-        </div>
+              </thead>
+              <tbody>
+                {pageItems.map((v) => (
+                  <tr
+                    key={v.id}
+                    onClick={() => navigate(`/inventory/${v.id}`)}
+                    className="cursor-pointer border-b border-slate-100 hover:bg-indigo-50/60 last:border-0 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    <td className="px-4 py-3 font-mono font-semibold text-slate-900 dark:text-white">{v.stockNumber}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-medium text-slate-900 dark:text-white">{v.year} {v.make} {v.model}</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">{v.trim} · {v.extColor}</span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{v.vin}</td>
+                    <td className="px-4 py-3"><StatusChip value={v.status} /></td>
+                    <td className="px-4 py-3 text-right font-mono">{v.mileage.toLocaleString('en-US')}</td>
+                    <td className="px-4 py-3 text-right"><Money value={v.askingPrice} /></td>
+                    <td className="px-4 py-3 text-right font-mono">{daysInStock(v)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-4 py-3">{controls}</div>
+          </div>
+          </>
       )}
 
-      {showAdd && (
-        <Modal title="Add vehicle" onClose={() => setShowAdd(false)} wide>
-          {error && <div className="mb-4"><Alert severity="error" title="Could not add vehicle" description={error} /></div>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Stock number *"><input className={inputCls} value={form.stockNumber} onChange={(e) => set('stockNumber', e.target.value)} placeholder="CDT-115" /></Field>
-            <Field label="VIN *"><input className={inputCls} value={form.vin} onChange={(e) => set('vin', e.target.value)} placeholder="17-character VIN" /></Field>
-            <Field label="Year"><input className={inputCls} type="number" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
-            <Field label="Make *"><input className={inputCls} value={form.make} onChange={(e) => set('make', e.target.value)} /></Field>
-            <Field label="Model *"><input className={inputCls} value={form.model} onChange={(e) => set('model', e.target.value)} /></Field>
-            <Field label="Trim"><input className={inputCls} value={form.trim} onChange={(e) => set('trim', e.target.value)} /></Field>
-            <Field label="Exterior color"><input className={inputCls} value={form.extColor} onChange={(e) => set('extColor', e.target.value)} /></Field>
-            <Field label="Interior color"><input className={inputCls} value={form.intColor} onChange={(e) => set('intColor', e.target.value)} /></Field>
-            <Field label="Mileage"><input className={inputCls} type="number" min={0} value={form.mileage} onChange={(e) => set('mileage', e.target.value)} /></Field>
-            <Field label="Transmission"><input className={inputCls} value={form.transmission} onChange={(e) => set('transmission', e.target.value)} /></Field>
-            <Field label="Engine"><input className={inputCls} value={form.engine} onChange={(e) => set('engine', e.target.value)} placeholder="e.g. 2.5L 4-cyl" /></Field>
-            <Field label="Fuel"><input className={inputCls} value={form.fuel} onChange={(e) => set('fuel', e.target.value)} /></Field>
-            <Field label="Drivetrain"><input className={inputCls} value={form.drivetrain} onChange={(e) => set('drivetrain', e.target.value)} /></Field>
-            <Field label="Body type"><input className={inputCls} value={form.bodyType} onChange={(e) => set('bodyType', e.target.value)} /></Field>
-            <Field label="Condition">
-              <select className={inputCls} value={form.condition} onChange={(e) => set('condition', e.target.value)}>
-                {(['Excellent', 'Good', 'Fair', 'Poor'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="Title status">
-              <select className={inputCls} value={form.titleStatus} onChange={(e) => set('titleStatus', e.target.value)}>
-                {(['Clean', 'Salvage', 'Rebuilt', 'Lien', 'Missing'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select className={inputCls} value={form.status} onChange={(e) => set('status', e.target.value)}>
-                {VEHICLE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-            <Field label="Purchase source">
-              <select className={inputCls} value={form.purchaseSource} onChange={(e) => set('purchaseSource', e.target.value)}>
-                {(['Auction', 'Wholesale', 'Private seller', 'Trade-in', 'Other dealer'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="Purchase date"><input className={inputCls} type="date" value={form.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></Field>
-            <Field label="Purchase price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} /></Field>
-            <Field label="Auction fees ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.auctionFees} onChange={(e) => set('auctionFees', e.target.value)} /></Field>
-            <Field label="Transport cost ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.transportCost} onChange={(e) => set('transportCost', e.target.value)} /></Field>
-            <Field label="Asking price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.askingPrice} onChange={(e) => set('askingPrice', e.target.value)} /></Field>
-            <Field label="Minimum price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.minPrice} onChange={(e) => set('minPrice', e.target.value)} /></Field>
-            <Field label="Photos" hint="Comma-separated file names, e.g. front.jpg, side.jpg">
-              <input className={inputCls} value={form.photos} onChange={(e) => set('photos', e.target.value)} />
-            </Field>
-            <Field label="Notes"><textarea className={inputCls} rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Duplicate VINs are rejected — the store checks the VIN against every existing vehicle.</p>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="text" size="sm" onClick={() => setShowAdd(false)}>Cancel</JXButton>
-            <JXButton variant="contained" size="sm" onClick={submit}>Add vehicle</JXButton>
-          </div>
-        </Modal>
-      )}
-      <p className="mt-3 text-xs text-slate-400">Click a row to open the vehicle detail page.</p>
-    </>
-  )
-}
+          {showAdd && (
+            <Modal title="Add vehicle" onClose={() => setShowAdd(false)} wide>
+              {error && <div className="mb-4"><Alert severity="error" title="Could not add vehicle" description={error} /></div>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Stock number *"><input className={inputCls} value={form.stockNumber} onChange={(e) => set('stockNumber', e.target.value)} placeholder="CDT-115" /></Field>
+                <Field label="VIN *"><input className={inputCls} value={form.vin} onChange={(e) => set('vin', e.target.value)} placeholder="17-character VIN" /></Field>
+                <Field label="Year"><input className={inputCls} type="number" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
+                <Field label="Make *"><input className={inputCls} value={form.make} onChange={(e) => set('make', e.target.value)} /></Field>
+                <Field label="Model *"><input className={inputCls} value={form.model} onChange={(e) => set('model', e.target.value)} /></Field>
+                <Field label="Trim"><input className={inputCls} value={form.trim} onChange={(e) => set('trim', e.target.value)} /></Field>
+                <Field label="Exterior color"><input className={inputCls} value={form.extColor} onChange={(e) => set('extColor', e.target.value)} /></Field>
+                <Field label="Interior color"><input className={inputCls} value={form.intColor} onChange={(e) => set('intColor', e.target.value)} /></Field>
+                <Field label="Mileage"><input className={inputCls} type="number" min={0} value={form.mileage} onChange={(e) => set('mileage', e.target.value)} /></Field>
+                <Field label="Transmission"><input className={inputCls} value={form.transmission} onChange={(e) => set('transmission', e.target.value)} /></Field>
+                <Field label="Engine"><input className={inputCls} value={form.engine} onChange={(e) => set('engine', e.target.value)} placeholder="e.g. 2.5L 4-cyl" /></Field>
+                <Field label="Fuel"><input className={inputCls} value={form.fuel} onChange={(e) => set('fuel', e.target.value)} /></Field>
+                <Field label="Drivetrain"><input className={inputCls} value={form.drivetrain} onChange={(e) => set('drivetrain', e.target.value)} /></Field>
+                <Field label="Body type"><input className={inputCls} value={form.bodyType} onChange={(e) => set('bodyType', e.target.value)} /></Field>
+                <Field label="Condition">
+                  <select className={inputCls} value={form.condition} onChange={(e) => set('condition', e.target.value)}>
+                    {(['Excellent', 'Good', 'Fair', 'Poor'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Title status">
+                  <select className={inputCls} value={form.titleStatus} onChange={(e) => set('titleStatus', e.target.value)}>
+                    {(['Clean', 'Salvage', 'Rebuilt', 'Lien', 'Missing'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Status">
+                  <select className={inputCls} value={form.status} onChange={(e) => set('status', e.target.value)}>
+                    {VEHICLE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+                <Field label="Purchase source">
+                  <select className={inputCls} value={form.purchaseSource} onChange={(e) => set('purchaseSource', e.target.value)}>
+                    {(['Auction', 'Wholesale', 'Private seller', 'Trade-in', 'Other dealer'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Purchase date"><input className={inputCls} type="date" value={form.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></Field>
+                <Field label="Purchase price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} /></Field>
+                <Field label="Auction fees ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.auctionFees} onChange={(e) => set('auctionFees', e.target.value)} /></Field>
+                <Field label="Transport cost ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.transportCost} onChange={(e) => set('transportCost', e.target.value)} /></Field>
+                <Field label="Asking price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.askingPrice} onChange={(e) => set('askingPrice', e.target.value)} /></Field>
+                <Field label="Minimum price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.minPrice} onChange={(e) => set('minPrice', e.target.value)} /></Field>
+                <Field label="Photos" hint="Comma-separated file names, e.g. front.jpg, side.jpg">
+                  <input className={inputCls} value={form.photos} onChange={(e) => set('photos', e.target.value)} />
+                </Field>
+                <Field label="Notes"><textarea className={inputCls} rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
+              </div>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Duplicate VINs are rejected — the store checks the VIN against every existing vehicle.</p>
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <JXButton variant="text" size="sm" onClick={() => setShowAdd(false)}>Cancel</JXButton>
+                <JXButton variant="contained" size="sm" onClick={submit}>Add vehicle</JXButton>
+              </div>
+            </Modal>
+          )}
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Click a row to open the vehicle detail page.</p>
+        </>
+      )
+      }

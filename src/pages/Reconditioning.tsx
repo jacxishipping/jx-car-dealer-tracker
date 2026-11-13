@@ -9,7 +9,7 @@ import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type ExpenseCategory, type ReconJob } from '../store/types'
 import {
   Alert, EmptyState, Field, inputCls, KpiCard, Modal,
-  Money, PageHeader, selectCls, StatusChip,
+  Money, PageHeader, selectCls, StatusChip, TableScrollHint,
 } from '../components/ui'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -152,13 +152,16 @@ export default function Reconditioning() {
       {success && <div className="mb-4"><Alert severity="success" title="Done" description={success} /></div>}
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <select className={`${selectCls} w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by job status">
-          <option value="All">All statuses</option>
-          {JOB_STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <JXButton variant="contained" size="sm" onClick={openNewJob}>
-          <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New job</span>
-        </JXButton>
+          <div>
+            <label htmlFor="recon-status-filter" className="sr-only">Filter by job status</label>
+            <select id="recon-status-filter" className={`${selectCls} w-full sm:w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by job status">
+              <option value="All">All statuses</option>
+              {JOB_STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewJob}>
+            <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New job</span>
+          </JXButton>
       </div>
 
       {groups.length === 0 ? (
@@ -176,34 +179,35 @@ export default function Reconditioning() {
                 title={vehicle ? `${vehicle.stockNumber} — ${vehicle.year} ${vehicle.make} ${vehicle.model}` : `Vehicle ${vehicleId}`}
                 kicker={vehicle?.status ?? ''}
                 description={vehicle ? `${vehicle.vin} · ${vehicle.mileage.toLocaleString()} km · ${vehicle.extColor}` : undefined}
-                className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]"
               >
                 <div className="p-4">
-                  <div className="mb-3 flex flex-wrap gap-4 text-sm text-slate-500">
-                    <span>Jobs: <strong className="text-slate-900 dark:text-white">{vJobs.length}</strong></span>
-                    <span>Estimated: <Money value={est} className="text-slate-900 dark:text-white" /></span>
-                    <span>Actual (jobs): <Money value={actual} className="text-slate-900 dark:text-white" /></span>
-                    <span>Linked expenses: <Money value={expTotal} className="text-slate-900 dark:text-white" /></span>
-                  </div>
+                    <div className="mb-3 flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
+                      <span>Jobs: <strong className="text-slate-900 dark:text-white">{vJobs.length}</strong></span>
+                      <span>Estimated: <Money value={est} className="text-slate-900 dark:text-white" /></span>
+                      <span>Actual (jobs): <Money value={actual} className="text-slate-900 dark:text-white" /></span>
+                      <span>Linked expenses: <Money value={expTotal} className="text-slate-900 dark:text-white" /></span>
+                    </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                          <th className="px-3 py-2">Job</th><th className="px-3 py-2">Category</th>
-                          <th className="px-3 py-2">Technician</th><th className="px-3 py-2">Status</th>
-                          <th className="px-3 py-2 text-right">Estimated</th><th className="px-3 py-2 text-right">Actual</th>
-                          <th className="px-3 py-2">Dates</th><th className="px-3 py-2" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {vJobs.map((j) => (
-                          <tr key={j.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                    <TableScrollHint />
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-left text-sm">
+                        <thead>
+                            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                              <th className="px-3 py-2">Job</th><th className="px-3 py-2">Category</th>
+                              <th className="px-3 py-2">Technician</th><th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2 text-right">Estimated</th><th className="px-3 py-2 text-right">Actual</th>
+                              <th className="px-3 py-2">Dates</th><th className="px-3 py-2" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                          {vJobs.map((j) => (
+                          <tr key={j.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
                             <td className="px-3 py-2">
                               <p className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-white">
-                                <Wrench className="h-4 w-4 text-slate-400" />{j.title}
+                                <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" />{j.title}
                               </p>
-                              {j.notes && <p className="text-xs text-slate-500">{j.notes}</p>}
+                              {j.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{j.notes}</p>}
                             </td>
                             <td className="px-3 py-2">{j.category}</td>
                             <td className="px-3 py-2">{j.technician}</td>
@@ -212,16 +216,16 @@ export default function Reconditioning() {
                             <td className="px-3 py-2 text-right"><Money value={j.actualCost} /></td>
                             <td className="px-3 py-2 whitespace-nowrap text-xs">
                               <p>Started {j.startedAt}</p>
-                              <p className="text-slate-500">{j.completedAt ? `Done ${j.completedAt}` : 'Not completed'}</p>
+                              <p className="text-slate-500 dark:text-slate-400">{j.completedAt ? `Done ${j.completedAt}` : 'Not completed'}</p>
                             </td>
                             <td className="px-3 py-2 text-right">
                               <div className="flex flex-wrap justify-end gap-2">
                                 {j.status !== 'Done' && (
-                                  <JXButton variant="soft" size="sm" onClick={() => advance(j)}>
+                                  <JXButton variant="soft" size="sm" lockWidth={false} onClick={() => advance(j)}>
                                     {j.status === 'Not started' ? 'Start' : 'Mark done'}
                                   </JXButton>
                                 )}
-                                <JXButton variant="outlined" size="sm" onClick={() => openExpense(j)}>
+                                <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => openExpense(j)}>
                                   <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />Record cost</span>
                                 </JXButton>
                               </div>
@@ -233,16 +237,16 @@ export default function Reconditioning() {
                   </div>
 
                   <div className="mt-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Linked expenses for this vehicle ({expenses.length})</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Linked expenses for this vehicle ({expenses.length})</p>
                     {expenses.length === 0 ? (
-                      <p className="text-sm text-slate-400">No expenses linked to this vehicle yet.</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No expenses linked to this vehicle yet.</p>
                     ) : (
-                      <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+                      <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-700">
                         {[...expenses].sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
                           <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                             <span>
                               <span className="font-medium text-slate-900 dark:text-white">{e.description}</span>
-                              <span className="ml-2 text-xs text-slate-500">{e.date} · {e.category} · {e.vendor}{e.invoiceRef ? ` · ${e.invoiceRef}` : ''}</span>
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{e.date} · {e.category} · {e.vendor}{e.invoiceRef ? ` · ${e.invoiceRef}` : ''}</span>
                             </span>
                             <span className="flex items-center gap-2">
                               <StatusChip value={e.status} />
@@ -255,69 +259,69 @@ export default function Reconditioning() {
                   </div>
                 </div>
               </JXCard>
-            )
+                        )
           })}
-        </div>
+                    </div>
       )}
 
-      {newJobOpen && (
-        <Modal title="New recon job" onClose={() => setNewJobOpen(false)}>
-          {error && <div className="mb-4"><Alert severity="error" title="Could not create job" description={error} /></div>}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Vehicle *">
-              <select className={selectCls} value={nf.vehicleId} onChange={(e) => setNf((p) => ({ ...p, vehicleId: e.target.value }))}>
-                {state.vehicles.map((v) => (
-                  <option key={v.id} value={v.id}>{v.stockNumber} — {v.year} {v.make} {v.model}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Job title *"><input className={inputCls} value={nf.title} onChange={(e) => setNf((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Brake service" /></Field>
-            <Field label="Category">
-              <select className={selectCls} value={nf.category} onChange={(e) => setNf((p) => ({ ...p, category: e.target.value as ExpenseCategory }))}>
-                {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="Technician"><input className={inputCls} value={nf.technician} onChange={(e) => setNf((p) => ({ ...p, technician: e.target.value }))} placeholder="e.g. M. Rahimi" /></Field>
-            <Field label="Estimated cost (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={nf.estimatedCost} onChange={(e) => setNf((p) => ({ ...p, estimatedCost: e.target.value }))} /></Field>
-            <Field label="Notes"><input className={inputCls} value={nf.notes} onChange={(e) => setNf((p) => ({ ...p, notes: e.target.value }))} /></Field>
-          </div>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" size="sm" onClick={() => setNewJobOpen(false)}>Cancel</JXButton>
-            <JXButton variant="contained" size="sm" onClick={submitNewJob}>Create job</JXButton>
-          </div>
-        </Modal>
-      )}
+                    {newJobOpen && (
+                      <Modal title="New recon job" onClose={() => setNewJobOpen(false)}>
+                        {error && <div className="mb-4"><Alert severity="error" title="Could not create job" description={error} /></div>}
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <Field label="Vehicle *">
+                            <select className={selectCls} value={nf.vehicleId} onChange={(e) => setNf((p) => ({ ...p, vehicleId: e.target.value }))}>
+                              {state.vehicles.map((v) => (
+                                <option key={v.id} value={v.id}>{v.stockNumber} — {v.year} {v.make} {v.model}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Job title *"><input className={inputCls} value={nf.title} onChange={(e) => setNf((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Brake service" /></Field>
+                          <Field label="Category">
+                            <select className={selectCls} value={nf.category} onChange={(e) => setNf((p) => ({ ...p, category: e.target.value as ExpenseCategory }))}>
+                              {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Technician"><input className={inputCls} value={nf.technician} onChange={(e) => setNf((p) => ({ ...p, technician: e.target.value }))} placeholder="e.g. M. Rahimi" /></Field>
+                          <Field label="Estimated cost (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={nf.estimatedCost} onChange={(e) => setNf((p) => ({ ...p, estimatedCost: e.target.value }))} /></Field>
+                          <Field label="Notes"><input className={inputCls} value={nf.notes} onChange={(e) => setNf((p) => ({ ...p, notes: e.target.value }))} /></Field>
+                        </div>
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                          <JXButton variant="outlined" size="sm" onClick={() => setNewJobOpen(false)}>Cancel</JXButton>
+                          <JXButton variant="contained" size="sm" onClick={submitNewJob}>Create job</JXButton>
+                        </div>
+                      </Modal>
+                    )}
 
-      {expenseJob && (
-        <Modal
-          title={`Record cost as expense — ${expenseJob.title} (${vehicleById.get(expenseJob.vehicleId)?.stockNumber ?? ''})`}
-          onClose={() => setExpenseJob(null)}
-        >
-          {error && <div className="mb-4"><Alert severity="error" title="Could not record expense" description={error} /></div>}
-          <p className="mb-4 text-sm text-slate-500">
-            This creates a Direct expense in the {expenseJob.category} category, linked to this vehicle.
-            It does not change the recon job itself.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Description"><input className={inputCls} value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} /></Field>
-            <Field label="Amount (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={f.amount} onChange={(e) => setF((p) => ({ ...p, amount: e.target.value }))} /></Field>
-            <Field label="Vendor"><input className={inputCls} value={f.vendor} onChange={(e) => setF((p) => ({ ...p, vendor: e.target.value }))} placeholder="e.g. AutoFix Garage" /></Field>
-            <Field label="Date"><input type="date" className={inputCls} value={f.date} onChange={(e) => setF((p) => ({ ...p, date: e.target.value }))} /></Field>
-            <Field label="Payment status">
-              <select className={selectCls} value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value as 'Paid' | 'Pending' }))}>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
-              </select>
-            </Field>
-            <Field label="Invoice ref"><input className={inputCls} value={f.invoiceRef} onChange={(e) => setF((p) => ({ ...p, invoiceRef: e.target.value }))} placeholder="e.g. INV-AF-771" /></Field>
-            <Field label="Notes"><input className={inputCls} value={f.notes} onChange={(e) => setF((p) => ({ ...p, notes: e.target.value }))} /></Field>
-          </div>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" size="sm" onClick={() => setExpenseJob(null)}>Cancel</JXButton>
-            <JXButton variant="contained" size="sm" onClick={submitExpense}>Record expense</JXButton>
-          </div>
-        </Modal>
-      )}
-    </>
-  )
+                    {expenseJob && (
+                      <Modal
+                        title={`Record cost as expense — ${expenseJob.title} (${vehicleById.get(expenseJob.vehicleId)?.stockNumber ?? ''})`}
+                        onClose={() => setExpenseJob(null)}
+                      >
+                        {error && <div className="mb-4"><Alert severity="error" title="Could not record expense" description={error} /></div>}
+                        <p className="mb-4 text-sm text-slate-500">
+                          This creates a Direct expense in the {expenseJob.category} category, linked to this vehicle.
+                          It does not change the recon job itself.
+                        </p>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <Field label="Description"><input className={inputCls} value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} /></Field>
+                          <Field label="Amount (USD) *"><input type="number" min="0" step="0.01" className={inputCls} value={f.amount} onChange={(e) => setF((p) => ({ ...p, amount: e.target.value }))} /></Field>
+                          <Field label="Vendor"><input className={inputCls} value={f.vendor} onChange={(e) => setF((p) => ({ ...p, vendor: e.target.value }))} placeholder="e.g. AutoFix Garage" /></Field>
+                          <Field label="Date"><input type="date" className={inputCls} value={f.date} onChange={(e) => setF((p) => ({ ...p, date: e.target.value }))} /></Field>
+                          <Field label="Payment status">
+                            <select className={selectCls} value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value as 'Paid' | 'Pending' }))}>
+                              <option value="Paid">Paid</option>
+                              <option value="Pending">Pending</option>
+                            </select>
+                          </Field>
+                          <Field label="Invoice ref"><input className={inputCls} value={f.invoiceRef} onChange={(e) => setF((p) => ({ ...p, invoiceRef: e.target.value }))} placeholder="e.g. INV-AF-771" /></Field>
+                          <Field label="Notes"><input className={inputCls} value={f.notes} onChange={(e) => setF((p) => ({ ...p, notes: e.target.value }))} /></Field>
+                        </div>
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                          <JXButton variant="outlined" size="sm" onClick={() => setExpenseJob(null)}>Cancel</JXButton>
+                          <JXButton variant="contained" size="sm" onClick={submitExpense}>Record expense</JXButton>
+                        </div>
+                      </Modal>
+                    )}
+                  </>
+                  )
 }

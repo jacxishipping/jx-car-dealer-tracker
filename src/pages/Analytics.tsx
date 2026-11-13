@@ -3,7 +3,7 @@ import { JXCard } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { daysInStock, monthlySeries } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { BarChart, Donut, EmptyState, KpiCard, Money, PageHeader } from '../components/ui'
+import { BarChart, Donut, EmptyState, KpiCard, Money, PageHeader, TableScrollHint } from '../components/ui'
 
 const DONUT_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#0ea5e9', '#f43f5e', '#8b5cf6', '#64748b']
 
@@ -63,8 +63,8 @@ export default function Analytics() {
     : 0
 
   const tableCls = 'w-full min-w-[640px] text-sm'
-  const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800'
-  const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-800 dark:text-slate-300'
+  const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400'
+  const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-700 dark:text-slate-300'
 
   return (
     <>
@@ -78,31 +78,31 @@ export default function Analytics() {
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <JXCard title="Revenue & profit — last 6 months" kicker="Monthly series" description="Indigo = revenue, green = net profit, from sales dates."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           {series.every((m) => m.revenue === 0 && m.profit === 0)
             ? <EmptyState title="No sales in the last 6 months" detail="Finalise a deal to see revenue and profit here." />
             : (
               <>
                 <BarChart data={series.map((m) => ({ label: m.label, value: m.revenue, value2: m.profit }))} />
-                <div className="mt-2 flex gap-4 text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" /> Revenue</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Net profit</span>
-                </div>
-              </>
+                  <div className="mt-2 flex gap-4 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" /> Revenue</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Net profit</span>
+                  </div>
+                </>
             )}
-        </JXCard>
+              </JXCard>
 
-        <JXCard title="Inventory by status" kicker="Stock mix" description="All vehicles in the tracker, grouped by current status."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          {state.vehicles.length === 0
-            ? <EmptyState title="No vehicles" />
-            : <Donut segments={statusCounts} total={state.vehicles.length} label="vehicles" />}
-        </JXCard>
+          <JXCard title="Inventory by status" kicker="Stock mix" description="All vehicles in the tracker, grouped by current status."
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+            {state.vehicles.length === 0
+              ? <EmptyState title="No vehicles" />
+              : <Donut segments={statusCounts} total={state.vehicles.length} label="vehicles" />}
+          </JXCard>
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <JXCard title="Sales by salesperson" kicker="Revenue share" description="Revenue and realised profit per salesperson, from finalised sales."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           {bySalesperson.length === 0
             ? <EmptyState title="No sales yet" detail="Finalise a deal to see salesperson results." />
             : (
@@ -112,13 +112,13 @@ export default function Analytics() {
                   return (
                     <div key={s.name}>
                       <div className="flex justify-between text-sm">
-                        <span className="font-medium text-slate-900 dark:text-white">{s.name} <span className="text-slate-400">· {s.deals} {s.deals === 1 ? 'deal' : 'deals'}</span></span>
+                        <span className="font-medium text-slate-900 dark:text-white">{s.name} <span className="text-slate-500 dark:text-slate-400">· {s.deals} {s.deals === 1 ? 'deal' : 'deals'}</span></span>
                         <span className="font-mono"><Money value={s.revenue} /></span>
                       </div>
-                      <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
                         <div className="h-2 rounded-full bg-indigo-600" style={{ width: `${(s.revenue / max) * 100}%` }} />
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-500">Realised net profit <Money value={s.profit} /></p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Realised net profit <Money value={s.profit} /></p>
                     </div>
                   )
                 })}
@@ -127,7 +127,7 @@ export default function Analytics() {
         </JXCard>
 
         <JXCard title="Expenses by category" kicker="Where money goes" description="All recorded expenses, direct and overhead, grouped by category."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           {expensesByCategory.length === 0
             ? <EmptyState title="No expenses recorded" />
             : (
@@ -138,12 +138,12 @@ export default function Analytics() {
                       <span className="text-slate-700 dark:text-slate-300">{e.label}</span>
                       <span className="font-mono"><Money value={e.value} /></span>
                     </div>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
                       <div className="h-2 rounded-full bg-amber-500" style={{ width: `${(e.value / maxExpense) * 100}%` }} />
                     </div>
                   </div>
                 ))}
-                <p className="border-t border-slate-200 pt-2 text-sm text-slate-500 dark:border-slate-800">Total expenses: <span className="font-mono font-semibold text-slate-900 dark:text-white">{fmtMoney(totalExpenses)}</span></p>
+                <p className="border-t border-slate-200 pt-2 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">Total expenses: <span className="font-mono font-semibold text-slate-900 dark:text-white">{fmtMoney(totalExpenses)}</span></p>
               </div>
             )}
         </JXCard>
@@ -151,7 +151,7 @@ export default function Analytics() {
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <JXCard title="CRM conversion funnel" kicker="Leads by stage" description="Conversion = Sold ÷ (Sold + Lost). Open leads are still in play, not lost."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           {state.leads.length === 0
             ? <EmptyState title="No leads" />
             : (
@@ -161,14 +161,14 @@ export default function Analytics() {
                   return (
                     <div key={stage} className="flex items-center gap-3 text-sm">
                       <span className="w-28 text-slate-600 dark:text-slate-300">{stage}</span>
-                      <div className="h-2.5 flex-1 rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="h-2.5 flex-1 rounded-full bg-slate-100 dark:bg-slate-700">
                         <div className="h-2.5 rounded-full bg-indigo-600" style={{ width: `${state.leads.length > 0 ? (n / state.leads.length) * 100 : 0}%` }} />
                       </div>
                       <span className="w-8 text-right font-mono font-semibold">{n}</span>
                     </div>
                   )
                 })}
-                <p className="border-t border-slate-200 pt-2 text-sm text-slate-500 dark:border-slate-800">
+                <p className="border-t border-slate-200 pt-2 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {state.leads.length} leads in total · {soldLeads} sold · {lostLeads} lost · conversion <span className="font-semibold text-slate-900 dark:text-white">{conversionRate.toFixed(1)}%</span>
                 </p>
               </div>
@@ -176,29 +176,32 @@ export default function Analytics() {
         </JXCard>
 
         <JXCard title="Salesperson performance" kicker="Deals & realised profit" description="One row per salesperson with finalised sales."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           {bySalesperson.length === 0
             ? <EmptyState title="No sales yet" />
             : (
-              <div className="overflow-x-auto">
-                <table className={tableCls}>
-                  <thead><tr><th className={thCls}>Salesperson</th><th className={`${thCls} text-right`}>Deals</th><th className={`${thCls} text-right`}>Revenue</th><th className={`${thCls} text-right`}>Realised profit</th><th className={`${thCls} text-right`}>Avg profit / deal</th></tr></thead>
-                  <tbody>
-                    {bySalesperson.map((s) => (
-                      <tr key={s.name}>
-                        <td className={tdCls}>{s.name}</td>
-                        <td className={`${tdCls} text-right`}>{s.deals}</td>
-                        <td className={`${tdCls} text-right font-mono`}><Money value={s.revenue} /></td>
-                        <td className={`${tdCls} text-right font-mono`}><Money value={s.profit} /></td>
-                        <td className={`${tdCls} text-right font-mono`}><Money value={s.deals > 0 ? s.profit / s.deals : 0} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <TableScrollHint />
+                <div className="overflow-x-auto">
+                  <table className={tableCls}>
+                    <thead><tr><th className={thCls}>Salesperson</th><th className={`${thCls} text-right`}>Deals</th><th className={`${thCls} text-right`}>Revenue</th><th className={`${thCls} text-right`}>Realised profit</th><th className={`${thCls} text-right`}>Avg profit / deal</th></tr></thead>
+                    <tbody>
+                      {bySalesperson.map((s) => (
+                        <tr key={s.name}>
+                          <td className={tdCls}>{s.name}</td>
+                          <td className={`${tdCls} text-right`}>{s.deals}</td>
+                          <td className={`${tdCls} text-right font-mono`}><Money value={s.revenue} /></td>
+                          <td className={`${tdCls} text-right font-mono`}><Money value={s.profit} /></td>
+                          <td className={`${tdCls} text-right font-mono`}><Money value={s.deals > 0 ? s.profit / s.deals : 0} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
         </JXCard>
       </div>
     </>
-  )
+        )
 }

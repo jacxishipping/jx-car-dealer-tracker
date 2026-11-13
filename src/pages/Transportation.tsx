@@ -8,7 +8,7 @@ import { useStore } from '../store/store'
 import { fmtMoney, TRANSPORT_STATUSES, type TransportOrder, type TransportStatus } from '../store/types'
 import {
   Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal,
-  Money, PageHeader, selectCls, StatusChip, usePagination,
+  Money, PageHeader, selectCls, StatusChip, TableScrollHint, usePagination,
 } from '../components/ui'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -124,87 +124,98 @@ export default function Transportation() {
       {success && <div className="mb-4"><Alert severity="success" title="Transport updated" description={success} /></div>}
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <select className={`${selectCls} w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
-          <option>All</option>
-          {TRANSPORT_STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <select className={`${selectCls} w-auto`} value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)} aria-label="Filter by carrier">
-          <option>All</option>
-          {carriers.map((c) => <option key={c}>{c}</option>)}
-        </select>
+        <div>
+          <label htmlFor="transport-status-filter" className="sr-only">Filter by status</label>
+          <select id="transport-status-filter" className={`${selectCls} w-full sm:w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
+            <option>All</option>
+            {TRANSPORT_STATUSES.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="transport-carrier-filter" className="sr-only">Filter by carrier</label>
+          <select id="transport-carrier-filter" className={`${selectCls} w-full sm:w-auto`} value={carrierFilter} onChange={(e) => setCarrierFilter(e.target.value)} aria-label="Filter by carrier">
+            <option>All</option>
+            {carriers.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No transport orders found" detail="Adjust the filters, or create a new transport order." action={<JXButton variant="contained" size="sm" onClick={() => setOpen(true)}>New transport order</JXButton>} />
+        <EmptyState title="No transport orders found" detail="Adjust the filters, or create a new transport order." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpen(true)}>New transport order</JXButton>} />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <table className="w-full min-w-[980px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                <th className="px-4 py-3">Vehicle</th><th className="px-4 py-3">Carrier / Driver</th>
-                <th className="px-4 py-3">Pickup → Delivery</th><th className="px-4 py-3">Dates</th>
-                <th className="px-4 py-3 text-right">Price</th><th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Payment</th><th className="px-4 py-3">Docs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((t) => {
-                const v = vehicleById.get(t.vehicleId)
-                const isOpen = expanded === t.id
-                return (
-                  <tr key={t.id} className="border-b border-slate-100 align-top last:border-0 dark:border-slate-800">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-900 dark:text-white">
-                        {v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle not found'}
-                      </p>
-                      {v && <p className="font-mono text-xs text-slate-500">{v.stockNumber} · {v.status}</p>}
-                    </td>
-                    <td className="px-4 py-3"><p>{t.carrier}</p><p className="text-xs text-slate-500">{t.driver}</p></td>
-                    <td className="px-4 py-3">
-                      <p>{t.pickupLocation}</p>
-                      <p className="text-xs text-slate-500">→ {t.deliveryLocation}</p>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p>Pickup {t.pickupDate}</p>
-                      <p className="text-xs text-slate-500">ETA {t.expectedDelivery}</p>
-                      {t.actualDelivery && <p className="text-xs text-emerald-600">Delivered {t.actualDelivery}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-right"><Money value={t.price} /></td>
-                    <td className="px-4 py-3">
-                      <JXSelect
-                        options={TRANSPORT_STATUSES.map((s) => ({ id: s, label: s }))}
-                        value={t.status}
-                        onChange={(val) => advance(t, val as TransportStatus)}
-                      />
-                      <p className="mt-1 text-[11px] leading-tight text-slate-400">Changing to Delivered adds the price to cost basis.</p>
-                    </td>
-                    <td className="px-4 py-3"><StatusChip value={t.paymentStatus} /></td>
-                    <td className="px-4 py-3">
-                      <JXButton variant="outlined" size="sm" onClick={() => setExpanded(isOpen ? null : t.id)}>
-                        <span className="inline-flex items-center gap-1">
-                          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          {isOpen ? 'Hide' : 'Details'}
-                        </span>
-                      </JXButton>
-                      {isOpen && (
-                        <div className="mt-2 w-64 rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-800">
-                          <dl className="space-y-1">
-                            <div className="flex justify-between gap-2"><dt className="text-slate-500">Gate pass</dt><dd className="font-mono">{t.gatePass || '—'}</dd></div>
-                            <div className="flex justify-between gap-2"><dt className="text-slate-500">Bill of lading</dt><dd className="font-mono">{t.billOfLading || '—'}</dd></div>
-                            <div className="flex justify-between gap-2"><dt className="text-slate-500">Invoice ref</dt><dd className="font-mono">{t.invoiceRef || '—'}</dd></div>
-                            <div className="flex justify-between gap-2"><dt className="text-slate-500">Photos</dt><dd>{t.photos.length ? t.photos.join(', ') : '—'}</dd></div>
-                          </dl>
-                          <p className="mt-2 text-slate-500">Damage notes</p>
-                          <p className="text-slate-700 dark:text-slate-200">{t.damageNotes || 'None noted.'}</p>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <TableScrollHint />
+          <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th className="px-4 py-3">Vehicle</th><th className="px-4 py-3">Carrier / Driver</th>
+                  <th className="px-4 py-3">Pickup → Delivery</th><th className="px-4 py-3">Dates</th>
+                  <th className="px-4 py-3 text-right">Price</th><th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Payment</th><th className="px-4 py-3">Docs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((t) => {
+                  const v = vehicleById.get(t.vehicleId)
+                  const isOpen = expanded === t.id
+                  return (
+                    <tr key={t.id} className="border-b border-slate-100 align-top last:border-0 dark:border-slate-700">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle not found'}
+                        </p>
+                        {v && <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{v.stockNumber} · {v.status}</p>}
+                      </td>
+                      <td className="px-4 py-3"><p>{t.carrier}</p><p className="text-xs text-slate-500 dark:text-slate-400">{t.driver}</p></td>
+                      <td className="px-4 py-3">
+                        <p>{t.pickupLocation}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">→ {t.deliveryLocation}</p>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p>Pickup {t.pickupDate}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">ETA {t.expectedDelivery}</p>
+                        {t.actualDelivery && <p className="text-xs text-emerald-700 dark:text-emerald-400">Delivered {t.actualDelivery}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-right"><Money value={t.price} /></td>
+                      <td className="px-4 py-3">
+                        <JXSelect
+                          label={`Order status for ${v?.stockNumber ?? t.id}`}
+                          className="jx-select-field jx-sr-label"
+                          options={TRANSPORT_STATUSES.map((s) => ({ id: s, label: s }))}
+                          value={t.status}
+                          onChange={(val) => advance(t, val as TransportStatus)}
+                        />
+                        <p className="mt-1 text-[11px] leading-tight text-slate-500 dark:text-slate-400">Changing to Delivered adds the price to cost basis.</p>
+                      </td>
+                      <td className="px-4 py-3"><StatusChip value={t.paymentStatus} /></td>
+                      <td className="px-4 py-3">
+                        <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => setExpanded(isOpen ? null : t.id)}>
+                          <span className="inline-flex items-center gap-1">
+                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            {isOpen ? 'Hide' : 'Details'}
+                          </span>
+                        </JXButton>
+                        {isOpen && (
+                          <div className="mt-2 w-64 rounded-[var(--radius-control)] bg-slate-50 p-3 text-xs dark:bg-slate-900">
+                            <dl className="space-y-1">
+                              <div className="flex justify-between gap-2"><dt className="text-slate-500 dark:text-slate-400">Gate pass</dt><dd className="font-mono">{t.gatePass || '—'}</dd></div>
+                              <div className="flex justify-between gap-2"><dt className="text-slate-500 dark:text-slate-400">Bill of lading</dt><dd className="font-mono">{t.billOfLading || '—'}</dd></div>
+                              <div className="flex justify-between gap-2"><dt className="text-slate-500 dark:text-slate-400">Invoice ref</dt><dd className="font-mono">{t.invoiceRef || '—'}</dd></div>
+                              <div className="flex justify-between gap-2"><dt className="text-slate-500 dark:text-slate-400">Photos</dt><dd>{t.photos.length ? t.photos.join(', ') : '—'}</dd></div>
+                            </dl>
+                            <p className="mt-2 text-slate-500 dark:text-slate-400">Damage notes</p>
+                            <p className="text-slate-700 dark:text-slate-200">{t.damageNotes || 'None noted.'}</p>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {controls}
 
@@ -242,14 +253,14 @@ export default function Transportation() {
             <Field label="Invoice ref"><input className={inputCls} value={f.invoiceRef} onChange={set('invoiceRef')} placeholder="e.g. INV-SH-2401" /></Field>
             <Field label="Damage notes"><input className={inputCls} value={f.damageNotes} onChange={set('damageNotes')} placeholder="None noted, or describe damage" /></Field>
           </div>
-          <p className="mt-4 flex items-start gap-2 text-xs text-slate-500">
-            <Truck className="mt-0.5 h-4 w-4 shrink-0" />
-            Marking an order Delivered later adds its price to the vehicle&apos;s cost basis and sets an In-transit vehicle to Received.
-          </p>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" size="sm" onClick={() => setOpen(false)}>Cancel</JXButton>
-            <JXButton variant="contained" size="sm" onClick={submit}>Create order</JXButton>
-          </div>
+            <p className="mt-4 flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <Truck className="mt-0.5 h-4 w-4 shrink-0" />
+              Marking an order Delivered later adds its price to the vehicle&apos;s cost basis and sets an In-transit vehicle to Received.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <JXButton variant="outlined" size="sm" onClick={() => setOpen(false)}>Cancel</JXButton>
+              <JXButton variant="contained" size="sm" onClick={submit}>Create order</JXButton>
+            </div>
         </Modal>
       )}
     </>

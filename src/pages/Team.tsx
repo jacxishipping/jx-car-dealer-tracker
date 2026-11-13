@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { JXAvatar, JXButton, JXCard, JXSelect, JXSwitch, JXTextField } from '@jacxishippingorg/jx-ui-react'
 import { useStore } from '../store/store'
 import { ROLES, type Role } from '../store/types'
-import { Alert, EmptyState, Field, Modal, PageHeader, StatusChip, usePagination } from '../components/ui'
+import { Alert, EmptyState, Field, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
 // Read-only permission matrix — what each role is allowed to do in the app's design.
 // Enforced in the UI only (buttons hidden/disabled); there is no server to enforce it yet.
@@ -43,8 +43,8 @@ export default function Team() {
     setName(''); setEmail('')
   }
 
-  const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800'
-  const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-800 dark:text-slate-300'
+  const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400'
+  const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-700 dark:text-slate-300'
 
   return (
     <>
@@ -62,99 +62,99 @@ export default function Team() {
         ? <EmptyState title="No team members" />
         : (
           <>
-            <div className="mb-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead><tr><th className={thCls}>Member</th><th className={thCls}>Email</th><th className={thCls}>Role</th><th className={thCls}>Status</th><th className={thCls}>Active</th></tr></thead>
-                <tbody>
-                  {pageItems.map((m) => (
-                    <tr key={m.id}>
-                      <td className={tdCls}>
-                        <span className="flex items-center gap-2">
-                          <JXAvatar name={m.name} role={m.role} size="sm" status={m.active ? 'online' : 'offline'} />
-                          <span className="font-medium text-slate-900 dark:text-white">{m.name}</span>
-                        </span>
-                      </td>
-                      <td className={tdCls}>{m.email}</td>
-                      <td className={tdCls}><StatusChip value={m.role} /></td>
-                      <td className={tdCls}><StatusChip value={m.active ? 'Active' : 'Closed'} /></td>
-                      <td className={tdCls}>
-                        <JXSwitch checked={m.active} disabled={!canManage} label={m.active ? 'Active' : 'Inactive'}
-                          onChange={(checked) => setMemberActive(m.id, checked)} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {controls}
-          </>
+              <TableScrollHint />
+              <div className="mb-4 overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead><tr><th className={thCls}>Member</th><th className={thCls}>Email</th><th className={thCls}>Role</th><th className={thCls}>Status</th><th className={thCls}>Active</th></tr></thead>
+                  <tbody>
+                    {pageItems.map((m) => (
+                      <tr key={m.id}>
+                        <td className={tdCls}>
+                          <span className="flex items-center gap-2">
+                            <JXAvatar name={m.name} role={m.role} size="sm" status={m.active ? 'online' : 'offline'} />
+                            <span className="font-medium text-slate-900 dark:text-white">{m.name}</span>
+                          </span>
+                        </td>
+                        <td className={tdCls}>{m.email}</td>
+                        <td className={tdCls}><StatusChip value={m.role} /></td>
+                        <td className={tdCls}><StatusChip value={m.active ? 'Active' : 'Closed'} /></td>
+                        <td className={tdCls}>
+                          <JXSwitch checked={m.active} disabled={!canManage} label={m.active ? 'Active' : 'Inactive'}
+                            onChange={(checked) => setMemberActive(m.id, checked)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {controls}
+            </>
         )}
 
-      <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Role permission matrix</h2>
-      <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-        Read-only reference. Roles are enforced at UI level in this build (buttons hidden or disabled); a production backend must enforce them server-side.
-      </p>
-      <div className="mb-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead><tr><th className={thCls}>Capability</th>{ROLES.map((r) => <th key={r} className={`${thCls} text-center`}>{r}</th>)}</tr></thead>
-          <tbody>
-            {MATRIX.map((row) => (
-              <tr key={row.capability}>
-                <td className={tdCls}>{row.capability}</td>
-                {ROLES.map((r) => (
-                  <td key={r} className={`${tdCls} text-center ${row.perms[r] ? 'text-emerald-600' : 'text-slate-300 dark:text-slate-600'}`}>
-                    {row.perms[r] ? '✓' : '—'}
-                  </td>
+            <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Role permission matrix</h2>
+            <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+              Read-only reference. Roles are enforced at UI level in this build (buttons hidden or disabled); a production backend must enforce them server-side.
+            </p>
+              <TableScrollHint />
+              <div className="mb-4 overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead><tr><th className={thCls}>Capability</th>{ROLES.map((r) => <th key={r} className={`${thCls} text-center`}>{r}</th>)}</tr></thead>
+                  <tbody>
+                    {MATRIX.map((row) => (
+                      <tr key={row.capability}>
+                        <td className={tdCls}>{row.capability}</td>
+                        {ROLES.map((r) => (
+                            <td key={r} className={`${tdCls} text-center ${row.perms[r] ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                              {row.perms[r] ? '✓' : '—'}
+                            </td>
                 ))}
-              </tr>
-            ))}
-          </tbody>
+                          </tr>
+                        ))}
+                      </tbody>
         </table>
-      </div>
+              </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Audit trail</h2>
-      <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Newest first. Every store action that matters (sales, purchases, payments, parts, expenses) writes an entry here.</p>
-      {auditSorted.length === 0
-        ? <EmptyState title="No audit events yet" />
-        : (
-          <>
-            <div className="space-y-2">
-              {auditPage.map((a) => (
-                <JXCard key={a.id} className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{a.action} <span className="font-normal text-slate-500">· {a.entityType} {a.entityId}</span></p>
-                    <p className="text-xs text-slate-400">{new Date(a.at).toLocaleString()} · {a.actor}</p>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{a.summary}</p>
-                </JXCard>
+              <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Audit trail</h2>
+              <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Newest first. Every store action that matters (sales, purchases, payments, parts, expenses) writes an entry here.</p>
+              {auditSorted.length === 0
+                ? <EmptyState title="No audit events yet" />
+                : (
+                  <>
+                    <div className="space-y-2">
+                      {auditPage.map((a) => (
+                          <JXCard key={a.id} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{a.action} <span className="font-normal text-slate-500 dark:text-slate-400">· {a.entityType} {a.entityId}</span></p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(a.at).toLocaleString()} · {a.actor}</p>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{a.summary}</p>
+                          </JXCard>
               ))}
-            </div>
-            {auditControls}
+                        </div>
+            { auditControls }
           </>
         )}
 
-      {showInvite && (
-        <Modal title="Invite member" onClose={() => setShowInvite(false)}>
-          <div className="space-y-4">
-            <Field label="Full name">
-              <JXTextField label="" value={name} onChange={setName} placeholder="e.g. Dana Karim" />
-            </Field>
-            <Field label="Email">
-              <JXTextField label="" value={email} onChange={setEmail} placeholder="name@jxautosales.demo" />
-            </Field>
-            <Field label="Role">
-              <JXSelect options={ROLES.map((r) => ({ id: r, label: r }))} value={role} onChange={(v) => setRole(v as Role)} />
-            </Field>
-            <p className="text-xs text-slate-500">Demo build: the invite creates a local team record only. No email is sent, no account is created, and there is no real authentication behind it.</p>
-            {error && <Alert severity="error" title="Cannot invite member" description={error} />}
-            {done && <Alert severity="success" title={done} />}
-            <div className="flex flex-wrap justify-end gap-2">
-              <JXButton variant="outlined" onClick={() => setShowInvite(false)}>Close</JXButton>
-              <JXButton variant="contained" onClick={submitInvite}>Invite member</JXButton>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </>
-  )
-}
+                    {showInvite && (
+                      <Modal title="Invite member" onClose={() => setShowInvite(false)}>
+                        <div className="space-y-4">
+                          <Field label="Full name">
+                            <JXTextField className="jx-text-field" label="" value={name} onChange={setName} placeholder="e.g. Dana Karim" />
+                          </Field>
+                          <Field label="Email">
+                            <JXTextField className="jx-text-field" label="" value={email} onChange={setEmail} placeholder="name@jxautosales.demo" />
+                          </Field>
+                          <JXSelect label="Role" className="jx-select-field jx-field-select" options={ROLES.map((r) => ({ id: r, label: r }))} value={role} onChange={(v) => setRole(v as Role)} />
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Demo build: the invite creates a local team record only. No email is sent, no account is created, and there is no real authentication behind it.</p>
+                          {error && <Alert severity="error" title="Cannot invite member" description={error} />}
+                          {done && <Alert severity="success" title={done} />}
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <JXButton variant="outlined" onClick={() => setShowInvite(false)}>Close</JXButton>
+                            <JXButton variant="contained" onClick={submitInvite}>Invite member</JXButton>
+                          </div>
+                        </div>
+                      </Modal>
+                    )}
+                  </>
+                )
+              }

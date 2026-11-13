@@ -236,7 +236,7 @@ export default function AiAssistant() {
     }
     if (parsed.kind === 'sensitive') {
       if (apiMode && opId) {
-        void serverApi.confirmAiOperation(opId, { confirm: true }).catch(() => {})
+        void serverApi.confirmAiOperation(opId, { confirm: true }).catch(() => { })
         setOpId(null)
       }
       // Deliberately NOT executed: the confirm screen is the end of the road
@@ -278,185 +278,193 @@ export default function AiAssistant() {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <JXCard className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="p-5">
-              <div className="flex gap-2">
-                <input
-                  className={inputCls}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && input.trim()) runParse(input) }}
-                  placeholder='Try: "Add a 2022 Honda Accord for $16,500"'
-                  aria-label="Command"
-                />
-                <JXButton variant="contained" onClick={() => input.trim() && runParse(input)}>
-                  <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4" /> Run</span>
-                </JXButton>
-                <JXButton
-                  variant="outlined"
-                  title="Voice input"
-                  onClick={() => setVoiceNote('Voice input is not connected in this build — type your command.')}
-                >
-                  <span className="inline-flex items-center gap-1.5"><Mic className="h-4 w-4" /> Voice</span>
-                </JXButton>
-              </div>
-              {voiceNote && <p className="mt-2 text-sm text-amber-600">{voiceNote}</p>}
-
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Example commands — tap to fill in</p>
-                <div className="flex flex-wrap gap-2">
-                  {EXAMPLES.map((ex) => (
-                    <button key={ex} onClick={() => { setInput(ex); runParse(ex) }}
-                      className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:border-indigo-400 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                      {ex}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-                <Field label="Receipt / invoice photo (optional)">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 hover:border-indigo-400 dark:border-slate-700 dark:text-slate-300">
-                    <ImagePlus className="h-4 w-4" />
-                    {photoName ? photoName : 'Choose a photo…'}
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (f) { setPhotoName(f.name); setPhotoNote(`Recorded file name only ("${f.name}") — no OCR in this build. The file itself is not uploaded or stored.`) }
-                      }} />
-                  </label>
-                </Field>
-                {photoNote && <p className="mt-2 text-sm text-slate-500">{photoNote}</p>}
-              </div>
-            </div>
-          </JXCard>
-
-          {/* Proposed operation / confirm screen */}
-          {parsed && parsed.kind !== 'unknown' && parsed.kind !== 'query_aged' && parsed.kind !== 'query_losing' && parsed.kind !== 'query_followups' && (
-            <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
               <div className="p-5">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-indigo-600" />
-                  <h2 className="text-base font-semibold text-slate-900 dark:text-white">Proposed operation — confirm before anything happens</h2>
-                </div>
-                <p className="mt-1 text-sm text-slate-500">Parsed from: “{raw}” — nothing has been executed yet.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <label htmlFor="ai-command-input" className="sr-only">Command</label>
+                    <input
+                      id="ai-command-input"
+                      className={`${inputCls} min-w-0 flex-1`}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && input.trim()) runParse(input) }}
+                      placeholder='Try: "Add a 2022 Honda Accord for $16,500"'
+                      aria-label="Command"
+                    />
+                      <JXButton variant="contained" lockWidth={false} onClick={() => input.trim() && runParse(input)}>
+                        <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4" /> Run</span>
+                      </JXButton>
+                      <JXButton
+                        variant="outlined"
+                        lockWidth={false}
+                        title="Voice input"
+                        onClick={() => setVoiceNote('Voice input is not connected in this build — type your command.')}
+                      >
+                        <span className="inline-flex items-center gap-1.5"><Mic className="h-4 w-4" /> Voice</span>
+                      </JXButton>
+                  </div>
+                  {voiceNote && <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">{voiceNote}</p>}
 
-                {parsed.kind === 'sensitive' && (
                   <div className="mt-4">
-                    <Alert severity="warning" title="Sensitive operation — confirm required"
-                      description={`"${parsed.action}" moves money or destroys data, so the assistant never executes it from a text command. Confirming here only acknowledges the request; complete the ${parsed.action} in the Sales, Purchases or Finance module.`} />
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Requested: {parsed.detail}</p>
-                  </div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Example commands — tap to fill in</p>
+                    <div className="flex flex-wrap gap-2">
+                      {EXAMPLES.map((ex) => (
+                          <button type="button" key={ex} onClick={() => { setInput(ex); runParse(ex) }}
+                            className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:border-indigo-400 hover:text-indigo-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-indigo-300">
+                            {ex}
+                          </button>
+                  ))}
+                        </div>
+              </div>
+
+                      <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Receipt / invoice photo (optional)</span>
+                        <label htmlFor="ai-photo-upload" className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-700 hover:border-indigo-600 dark:border-slate-600 dark:text-slate-200">
+                          <ImagePlus className="h-4 w-4" />
+                          <span>{photoName ? photoName : 'Choose a photo…'}</span>
+                          <input
+                            id="ai-photo-upload"
+                            type="file"
+                            accept="image/*"
+                            aria-label="Receipt or invoice photo (optional)"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) { setPhotoName(f.name); setPhotoNote(`Recorded file name only ("${f.name}") — no OCR in this build. The file itself is not uploaded or stored.`) }
+                            }}
+                          />
+                        </label>
+                        {photoNote && <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{photoNote}</p>}
+                      </div>
+                    </div>
+                  </JXCard>
+
+                  {/* Proposed operation / confirm screen */}
+                  {parsed && parsed.kind !== 'unknown' && parsed.kind !== 'query_aged' && parsed.kind !== 'query_losing' && parsed.kind !== 'query_followups' && (
+                      <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                        <div className="p-5">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Proposed operation — confirm before anything happens</h2>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Parsed from: “{raw}” — nothing has been executed yet.</p>
+
+                          {parsed.kind === 'sensitive' && (
+                            <div className="mt-4">
+                              <Alert severity="warning" title="Sensitive operation — confirm required"
+                                description={`"${parsed.action}" moves money or destroys data, so the assistant never executes it from a text command. Confirming here only acknowledges the request; complete the ${parsed.action} in the Sales, Purchases or Finance module.`} />
+                              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Requested: {parsed.detail}</p>
+                            </div>
+                          )}
+
+                          {parsed.kind === 'create_vehicle' && (
+                            <div className="mt-4 space-y-3">
+                              <p className="text-sm text-slate-700 dark:text-slate-200">
+                                Create vehicle: <strong>{parsed.year} {parsed.make} {parsed.model}</strong> — purchase price {fmtMoney(parsed.price)}.
+                              </p>
+                              <div className="grid gap-3 sm:grid-cols-3">
+                                <Field label="Stock number"><input className={inputCls} value={stockNumber} onChange={(e) => setStockNumber(e.target.value)} /></Field>
+                                <Field label="VIN (required)"><input className={inputCls} value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-character VIN" /></Field>
+                                <Field label="Asking price ($)"><input className={inputCls} type="number" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} /></Field>
+                              </div>
+                              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                                <div className="rounded-[var(--radius-control)] bg-slate-50 p-3 dark:bg-slate-900"><p className="font-semibold">Before</p><p className="text-slate-500 dark:text-slate-400">{state.vehicles.length} vehicles in the tracker.</p></div>
+                                <div className="rounded-[var(--radius-control)] bg-indigo-50 p-3 dark:bg-indigo-950"><p className="font-semibold">After</p><p className="text-slate-600 dark:text-slate-300">{state.vehicles.length + 1} vehicles — new {stockNumber || nextStock} ({parsed.year} {parsed.make} {parsed.model}), status Purchased.</p></div>
+                              </div>
+                            </div>
+                          )}
+
+                          {(parsed.kind === 'record_transport' || parsed.kind === 'record_expense') && targetVehicle && (
+                            <div className="mt-4 space-y-3">
+                              <p className="text-sm text-slate-700 dark:text-slate-200">
+                                Record <strong>{fmtMoney(parsed.amount)}</strong> {parsed.kind === 'record_transport' ? 'transportation' : parsed.category} expense for{' '}
+                                <strong>{targetVehicle.stockNumber} — {targetVehicle.year} {targetVehicle.make} {targetVehicle.model}</strong> (Direct, Pending).
+                              </p>
+                              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                                <div className="rounded-[var(--radius-control)] bg-slate-50 p-3 dark:bg-slate-900"><p className="font-semibold">Before</p><p className="text-slate-500 dark:text-slate-400">All-in cost {fmtMoney(allIn(targetVehicle))} · {state.expenses.length} expenses recorded.</p></div>
+                                <div className="rounded-[var(--radius-control)] bg-indigo-50 p-3 dark:bg-indigo-950"><p className="font-semibold">After</p><p className="text-slate-600 dark:text-slate-300">All-in cost {fmtMoney(allIn(targetVehicle) + parsed.amount)} · {state.expenses.length + 1} expenses recorded.</p></div>
+                              </div>
+                            </div>
+                          )}
+                          {(parsed.kind === 'record_transport' || parsed.kind === 'record_expense') && !targetVehicle && (
+                              <p className="mt-4 text-sm text-rose-600 dark:text-rose-400">
+                                No vehicle matches “{parsed.kind === 'record_transport' ? parsed.stockNumber : parsed.vehicleRef}”. Nothing will be recorded — check the stock number or make and try again.
+                              </p>
                 )}
 
-                {parsed.kind === 'create_vehicle' && (
-                  <div className="mt-4 space-y-3">
-                    <p className="text-sm text-slate-700 dark:text-slate-200">
-                      Create vehicle: <strong>{parsed.year} {parsed.make} {parsed.model}</strong> — purchase price {fmtMoney(parsed.price)}.
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <Field label="Stock number"><input className={inputCls} value={stockNumber} onChange={(e) => setStockNumber(e.target.value)} /></Field>
-                      <Field label="VIN (required)"><input className={inputCls} value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-character VIN" /></Field>
-                      <Field label="Asking price ($)"><input className={inputCls} type="number" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} /></Field>
-                    </div>
-                    <div className="grid gap-3 text-sm sm:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p className="font-semibold">Before</p><p className="text-slate-500">{state.vehicles.length} vehicles in the tracker.</p></div>
-                      <div className="rounded-xl bg-indigo-50 p-3 dark:bg-indigo-950"><p className="font-semibold">After</p><p className="text-slate-600 dark:text-slate-300">{state.vehicles.length + 1} vehicles — new {stockNumber || nextStock} ({parsed.year} {parsed.make} {parsed.model}), status Purchased.</p></div>
-                    </div>
-                  </div>
-                )}
-
-                {(parsed.kind === 'record_transport' || parsed.kind === 'record_expense') && targetVehicle && (
-                  <div className="mt-4 space-y-3">
-                    <p className="text-sm text-slate-700 dark:text-slate-200">
-                      Record <strong>{fmtMoney(parsed.amount)}</strong> {parsed.kind === 'record_transport' ? 'transportation' : parsed.category} expense for{' '}
-                      <strong>{targetVehicle.stockNumber} — {targetVehicle.year} {targetVehicle.make} {targetVehicle.model}</strong> (Direct, Pending).
-                    </p>
-                    <div className="grid gap-3 text-sm sm:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p className="font-semibold">Before</p><p className="text-slate-500">All-in cost {fmtMoney(allIn(targetVehicle))} · {state.expenses.length} expenses recorded.</p></div>
-                      <div className="rounded-xl bg-indigo-50 p-3 dark:bg-indigo-950"><p className="font-semibold">After</p><p className="text-slate-600 dark:text-slate-300">All-in cost {fmtMoney(allIn(targetVehicle) + parsed.amount)} · {state.expenses.length + 1} expenses recorded.</p></div>
-                    </div>
-                  </div>
-                )}
-                {(parsed.kind === 'record_transport' || parsed.kind === 'record_expense') && !targetVehicle && (
-                  <p className="mt-4 text-sm text-rose-600">
-                    No vehicle matches “{parsed.kind === 'record_transport' ? parsed.stockNumber : parsed.vehicleRef}”. Nothing will be recorded — check the stock number or make and try again.
-                  </p>
-                )}
-
-                <div className="mt-5 flex gap-2">
-                  <JXButton variant="contained" color="success" onClick={confirm}>
-                    <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />
-                      {parsed.kind === 'sensitive' ? 'Confirm — review only, do not execute' : 'Confirm & execute'}</span>
-                  </JXButton>
-                  <JXButton variant="outlined" onClick={() => {
-                    if (apiMode && opId) {
-                      void serverApi.confirmAiOperation(opId, { confirm: false }).catch(() => {})
-                      setOpId(null)
-                    }
-                    setParsed(null)
-                    setResult('Cancelled — nothing was executed.')
-                  }}>Cancel</JXButton>
+                                  <div className="mt-5 flex flex-wrap gap-2">
+                                    <JXButton variant="contained" color="success" lockWidth={false} onClick={confirm}>
+                                      <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" />
+                                        {parsed.kind === 'sensitive' ? 'Confirm — review only, do not execute' : 'Confirm & execute'}</span>
+                                    </JXButton>
+                                      <JXButton variant="outlined" lockWidth={false} onClick={() => {
+                                        if (apiMode && opId) {
+                                          void serverApi.confirmAiOperation(opId, { confirm: false }).catch(() => { })
+                                          setOpId(null)
+                                        }
+                                        setParsed(null)
+                                        setResult('Cancelled — nothing was executed.')
+                                      }}>Cancel</JXButton>
                 </div>
-                <p className="mt-2 flex items-center gap-1 text-xs text-slate-400"><ShieldAlert className="h-3.5 w-3.5" /> Executing writes an audit entry under your name ({state.currentUser}).</p>
-              </div>
-            </JXCard>
-          )}
+                                  <p className="mt-2 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400"><ShieldAlert className="h-3.5 w-3.5" /> Executing writes an audit entry under your name ({state.currentUser}).</p>
+                              </div>
+                            </JXCard>
+                          )}
 
-          {parsed?.kind === 'unknown' && (
-            <div className="mt-5"><Alert severity="warning" title="Could not understand that command"
-              description={`"${raw}" did not match any known pattern. Try one of the example commands — the parser handles add-vehicle, record-transport, record-expense, aged stock, losing-money and follow-up queries.`} /></div>
-          )}
+                          {parsed?.kind === 'unknown' && (
+                            <div className="mt-5"><Alert severity="warning" title="Could not understand that command"
+                              description={`"${raw}" did not match any known pattern. Try one of the example commands — the parser handles add-vehicle, record-transport, record-expense, aged stock, losing-money and follow-up queries.`} /></div>
+                          )}
 
-          {/* Query results */}
-          {parsed?.kind === 'query_aged' && (
-            <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="p-5">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Vehicles held for more than {parsed.days} days ({aged.length})</h2>
-                {aged.length === 0 ? <p className="mt-2 text-sm text-slate-500">None — no unsold vehicle has been held longer than {parsed.days} days.</p> : (
-                  <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
-                    {aged.map((v) => (
-                      <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
-                        <span className="font-semibold">{v.stockNumber}</span>
-                        <span>{v.year} {v.make} {v.model}</span>
-                        <StatusChip value={v.status} />
-                        <span className="ml-auto text-slate-500">{daysInStock(v)} days · asking {fmtMoney(v.askingPrice)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                          {/* Query results */}
+                          {parsed?.kind === 'query_aged' && (
+                              <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                                <div className="p-5">
+                                  <h2 className="text-base font-semibold text-slate-900 dark:text-white">Vehicles held for more than {parsed.days} days ({aged.length})</h2>
+                                      {aged.length === 0 ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">None — no unsold vehicle has been held longer than {parsed.days} days.</p> : (
+                                        <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
+                                          {aged.map((v) => (
+                                            <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+                                              <span className="font-semibold">{v.stockNumber}</span>
+                                              <span>{v.year} {v.make} {v.model}</span>
+                                              <StatusChip value={v.status} />
+                                              <span className="ml-auto text-slate-500 dark:text-slate-400">{daysInStock(v)} days · asking {fmtMoney(v.askingPrice)}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
             </JXCard>
           )}
-          {parsed?.kind === 'query_losing' && (
-            <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="p-5">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Vehicles losing money — asking price below all-in cost ({losing.length})</h2>
-                {losing.length === 0 ? <p className="mt-2 text-sm text-slate-500">None — every unsold vehicle is priced above its all-in cost.</p> : (
-                  <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
-                    {losing.map((v) => (
-                      <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
-                        <span className="font-semibold">{v.stockNumber}</span>
-                        <span>{v.year} {v.make} {v.model}</span>
-                        <span className="ml-auto text-slate-500">asking {fmtMoney(v.askingPrice)} · all-in {fmtMoney(allIn(v))} · shortfall {fmtMoney(allIn(v) - v.askingPrice)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                              {parsed?.kind === 'query_losing' && (
+                                  <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                                    <div className="p-5">
+                                      <h2 className="text-base font-semibold text-slate-900 dark:text-white">Vehicles losing money — asking price below all-in cost ({losing.length})</h2>
+                                          {losing.length === 0 ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">None — every unsold vehicle is priced above its all-in cost.</p> : (
+                                            <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
+                                              {losing.map((v) => (
+                                                <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+                                                  <span className="font-semibold">{v.stockNumber}</span>
+                                                  <span>{v.year} {v.make} {v.model}</span>
+                                                  <span className="ml-auto text-slate-500 dark:text-slate-400">asking {fmtMoney(v.askingPrice)} · all-in {fmtMoney(allIn(v))} · shortfall {fmtMoney(allIn(v) - v.askingPrice)}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          )}
+                                        </div>
             </JXCard>
           )}
-          {parsed?.kind === 'query_followups' && (
-            <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                  {parsed?.kind === 'query_followups' && (
+            <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
               <div className="p-5">
                 <h2 className="text-base font-semibold text-slate-900 dark:text-white">Customers who need follow-up — follow-up date in the past ({followups.length})</h2>
-                {followups.length === 0 ? <p className="mt-2 text-sm text-slate-500">None — no open lead has an overdue follow-up date.</p> : (
-                  <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+                {followups.length === 0 ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">None — no open lead has an overdue follow-up date.</p> : (
+                  <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
                     {followups.map(({ lead, customer }) => (
                       <li key={lead.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
                         <span className="font-semibold">{customer?.name ?? 'Unknown customer'}</span>
                         <JXChip label={lead.stage} tone="amber" />
-                        <span className="ml-auto text-slate-500">follow-up was due {lead.followUpDate} · {customer?.preferredContact} {customer?.phone}</span>
+                        <span className="ml-auto text-slate-500 dark:text-slate-400">follow-up was due {lead.followUpDate} · {customer?.preferredContact} {customer?.phone}</span>
                       </li>
                     ))}
                   </ul>
@@ -468,13 +476,13 @@ export default function AiAssistant() {
           {result && (
             <div className="mt-5">
               <JXAlert severity="success" title="Result" description={result} />
-              {state.audit[0] && <p className="mt-2 text-xs text-slate-500">Latest audit entry: {state.audit[0].at.slice(0, 19).replace('T', ' ')} — {state.audit[0].summary}</p>}
+              {state.audit[0] && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Latest audit entry: {state.audit[0].at.slice(0, 19).replace('T', ' ')} — {state.audit[0].summary}</p>}
             </div>
           )}
         </div>
 
         <div>
-          <JXCard className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
             <div className="p-5">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">What the parser understands</h2>
               <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
@@ -485,18 +493,18 @@ export default function AiAssistant() {
                 <li><strong>Losing money:</strong> “Which vehicles are losing money?”</li>
                 <li><strong>Follow-ups:</strong> “Show customers who need follow-up”</li>
               </ul>
-              <p className="mt-3 text-xs text-slate-400">Queries read live store data (days in stock, all-in cost, lead follow-up dates). Amounts use fmtMoney; a vehicle is “losing money” when asking price &lt; all-in cost.</p>
-              <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Queries read live store data (days in stock, all-in cost, lead follow-up dates). Amounts use fmtMoney; a vehicle is “losing money” when asking price &lt; all-in cost.</p>
+              <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Session history</h3>
                   {history.length > 0 && (
-                    <button onClick={() => setHistory([])} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600"><RotateCcw className="h-3.5 w-3.5" /> Clear</button>
+                    <button type="button" onClick={() => setHistory([])} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300"><RotateCcw className="h-3.5 w-3.5" /> Clear</button>
                   )}
                 </div>
                 {history.length === 0
-                  ? <p className="mt-2 text-sm text-slate-500">No commands yet this session.</p>
+                  ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">No commands run yet. Click an example prompt above or type a command to preview.</p>
                   : <ul className="mt-2 space-y-2 text-sm">{history.map((h, i) => (
-                    <li key={i} className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800"><p className="font-medium text-slate-700 dark:text-slate-200">“{h.cmd}”</p><p className="text-slate-500">{h.outcome}</p></li>
+                    <li key={i} className="rounded-[var(--radius-control)] bg-slate-50 p-2 dark:bg-slate-900"><p className="font-medium text-slate-700 dark:text-slate-200">“{h.cmd}”</p><p className="text-slate-500 dark:text-slate-400">{h.outcome}</p></li>
                   ))}</ul>}
               </div>
             </div>
@@ -504,5 +512,5 @@ export default function AiAssistant() {
         </div>
       </div>
     </>
-  )
-}
+                          )
+                          }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Clock, Package, TrendingUp, Wallet } from 'lucide-react'
 import { JXCard } from '@jacxishippingorg/jx-ui-react'
@@ -17,7 +18,7 @@ export default function Dashboard() {
   const kpis = dashboardKpis(state)
   const series = monthlySeries(state, 6)
   const fc = forecast(state)
-  const today = new Date().toISOString().slice(0, 10)
+  const [today] = useState(() => new Date().toISOString().slice(0, 10))
 
   const statusCounts = state.vehicles.reduce<Record<string, number>>((acc, v) => {
     acc[v.status] = (acc[v.status] ?? 0) + 1
@@ -43,130 +44,140 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={`${state.settings.orgName} — ${kpis.stockCount} vehicles in stock · ${state.vehicles.length} total vehicles`}
         actions={
-          <Link to="/inventory" className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            View inventory <ArrowRight className="h-4 w-4" />
-          </Link>
+            <Link to="/inventory" className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-control)] bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              View inventory <ArrowRight className="h-4 w-4" />
+            </Link>
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Inventory value" value={fmtMoney(kpis.inventoryValue)} sub={`${kpis.stockCount} vehicles in stock`} tone="indigo" />
-        <KpiCard label="Acquisition cost" value={fmtMoney(kpis.acquisitionCost)} sub="Purchase price + auction fees, all vehicles" tone="sky" />
-        <KpiCard label="Sales revenue" value={fmtMoney(kpis.salesRevenue)} sub={`${kpis.sold} sold`} tone="emerald" />
-        <KpiCard label="Gross profit" value={fmtMoney(kpis.grossProfit)} sub="Revenue − vehicle costs" tone="emerald" />
-        <KpiCard label="Net profit" value={fmtMoney(kpis.netProfit)} sub={`Margin ${kpis.marginPct.toFixed(1)}% of revenue`} tone={kpis.netProfit >= 0 ? 'emerald' : 'rose'} />
-        <KpiCard label="Total expenses" value={fmtMoney(kpis.totalExpenses)} sub="Direct + overhead" tone="amber" />
-        <KpiCard label="Cash" value={fmtMoney(kpis.cash)} sub="All accounts combined" tone="sky" />
-        <KpiCard label="Receivables" value={fmtMoney(kpis.receivables)} sub="Owed by customers" tone="amber" />
-        <KpiCard label="Payables" value={fmtMoney(kpis.payables)} sub="Owed to vendors / carriers" tone="rose" />
-        <KpiCard label="In transit / recon" value={`${kpis.inTransit} / ${kpis.inRecon}`} sub={`${kpis.available} available · ${kpis.reserved} reserved`} tone="indigo" />
-      </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <KpiCard label="Inventory value" value={fmtMoney(kpis.inventoryValue)} sub={`${kpis.stockCount} vehicles in stock`} tone="indigo" />
+              <KpiCard label="Acquisition cost" value={fmtMoney(kpis.acquisitionCost)} sub="Purchase price + auction fees, all vehicles" tone="sky" />
+              <KpiCard label="Sales revenue" value={fmtMoney(kpis.salesRevenue)} sub={`${kpis.sold} sold`} tone="emerald" />
+              <KpiCard label="Gross profit" value={fmtMoney(kpis.grossProfit)} sub="Revenue − vehicle costs" tone="emerald" />
+              <KpiCard label="Net profit" value={fmtMoney(kpis.netProfit)} sub={`Margin ${kpis.marginPct.toFixed(1)}% of revenue`} tone={kpis.netProfit >= 0 ? 'emerald' : 'rose'} />
+              <KpiCard label="Total expenses" value={fmtMoney(kpis.totalExpenses)} sub="Direct + overhead" tone="amber" />
+              <KpiCard label="Cash" value={fmtMoney(kpis.cash)} sub="All accounts combined" tone="sky" />
+              <KpiCard label="Receivables" value={fmtMoney(kpis.receivables)} sub="Owed by customers" tone="amber" />
+              <KpiCard label="Payables" value={fmtMoney(kpis.payables)} sub="Owed to vendors / carriers" tone="rose" />
+              <KpiCard label="In transit / recon" value={`${kpis.inTransit} / ${kpis.inRecon}`} sub={`${kpis.available} available · ${kpis.reserved} reserved`} tone="indigo" />
+            </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <JXCard title="Monthly revenue & profit" kicker="Last 6 months" description="Revenue (indigo) and net profit (green) from completed sales." className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <BarChart data={series.map((m) => ({ label: m.label, value: m.revenue, value2: m.profit }))} />
-          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            {series.map((m) => (
-              <span key={m.label}>{m.label}: <Money value={m.revenue} /> rev · <Money value={m.profit} /> profit</span>
-            ))}
-          </div>
-        </JXCard>
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <JXCard title="Monthly revenue & profit" kicker="Last 6 months" description="Revenue (indigo) and net profit (green) from completed sales." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                  <BarChart data={series.map((m) => ({ label: m.label, value: m.revenue, value2: m.profit }))} />
+                  <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                    {series.map((m) => (
+                      <span key={m.label}>{m.label}: <Money value={m.revenue} /> rev · <Money value={m.profit} /> profit</span>
+                    ))}
+                  </div>
+                </JXCard>
 
-        <JXCard title="Inventory by status" kicker="Inventory intelligence" description="Where every vehicle sits in the pipeline right now." className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          {state.vehicles.length === 0 ? (
-            <p className="text-sm text-slate-500">No vehicles yet.</p>
-          ) : (
-            <Donut segments={donutSegments} total={state.vehicles.length} label="vehicles" />
+                  <JXCard title="Inventory by status" kicker="Inventory intelligence" description="Where every vehicle sits in the pipeline right now." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                    {state.vehicles.length === 0 ? (
+                        <div className="flex flex-col items-start gap-3 rounded-[var(--radius-control)] border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+                          <p className="text-sm text-slate-600 dark:text-slate-300">
+                            No vehicles in inventory yet. Record your first acquisition to populate stock, cost basis, and ledger entries.
+                          </p>
+                          <Link
+                            to="/purchases?new=1"
+                            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-control)] bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                          >
+                            + Record first purchase
+                          </Link>
+                        </div>
+                        ) : (
+                        <Donut segments={donutSegments} total={state.vehicles.length} label="vehicles" />
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {Object.entries(statusCounts).map(([s, n]) => (
-              <span key={s} className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                <StatusChip value={s} /><span className="font-mono font-semibold">{n}</span>
-              </span>
-            ))}
-          </div>
-        </JXCard>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {Object.entries(statusCounts).map(([s, n]) => (
+                            <span key={s} className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                              <StatusChip value={s} /><span className="font-mono font-semibold">{n}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </JXCard>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <JXCard title="Operational alerts" kicker="Needs attention" description={`Target hold is ${state.settings.targetHoldDays} days. ${aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} open alerts.`} className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <ul className="space-y-3 text-sm">
-            {aged.length === 0 && unpaidTransport.length === 0 && unpaidReceivables.length === 0 && lowStockParts.length === 0 && overdueFollowUps.length === 0 && (
-              <li className="text-slate-500 dark:text-slate-400">No open alerts — nothing aged, unpaid, low on stock, or overdue.</li>
-            )}
-            {aged.map((v) => (
-              <li key={`aged-${v.id}`} className="flex items-start gap-2">
-                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                <span>
-                  <Link to={`/inventory/${v.id}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">{v.stockNumber} — {v.year} {v.make} {v.model}</Link>
-                  {' '}aged {daysInStock(v)} days in stock (target {state.settings.targetHoldDays}).
-                </span>
-              </li>
-            ))}
-            {unpaidTransport.map((t) => {
-              const v = state.vehicles.find((x) => x.id === t.vehicleId)
-              return (
-                <li key={`tr-${t.id}`} className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                  <span>Unpaid transport — {t.carrier} ({t.invoiceRef || 'no invoice ref'}) for {v ? `${v.stockNumber} ${v.year} ${v.make} ${v.model}` : t.vehicleId}: <Money value={t.price} /> · {t.paymentStatus}.</span>
-                </li>
-              )
-            })}
-            {unpaidReceivables.map((r) => (
-              <li key={`rc-${r.id}`} className="flex items-start gap-2">
-                <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                <span>Unpaid {r.kind.toLowerCase()} balance — {r.entityName} ({r.reference}): <Money value={r.total - r.paid} /> outstanding, due {r.dueDate} · {r.status}.</span>
-              </li>
-            ))}
-            {lowStockParts.map((p) => (
-              <li key={`ps-${p.id}`} className="flex items-start gap-2">
-                <Package className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                <span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span>
-              </li>
-            ))}
-            {overdueFollowUps.map((l) => {
-              const c = state.customers.find((x) => x.id === l.customerId)
-              return (
-                <li key={`fu-${l.id}`} className="flex items-start gap-2">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                  <span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span>
-                </li>
-              )
-            })}
-          </ul>
-        </JXCard>
+                  <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                      <JXCard title="Operational alerts" kicker="Needs attention" description={`Target hold is ${state.settings.targetHoldDays} days. ${aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} open alerts.`} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                        <ul className="space-y-3 text-sm">
+                          {aged.length === 0 && unpaidTransport.length === 0 && unpaidReceivables.length === 0 && lowStockParts.length === 0 && overdueFollowUps.length === 0 && (
+                            <li className="text-slate-500 dark:text-slate-400">No open alerts — nothing aged, unpaid, low on stock, or overdue.</li>
+                          )}
+                          {aged.map((v) => (
+                            <li key={`aged-${v.id}`} className="flex items-start gap-2">
+                              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                              <span>
+                                <Link to={`/inventory/${v.id}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">{v.stockNumber} — {v.year} {v.make} {v.model}</Link>
+                                {' '}aged {daysInStock(v)} days in stock (target {state.settings.targetHoldDays}).
+                              </span>
+                            </li>
+                          ))}
+                          {unpaidTransport.map((t) => {
+                            const v = state.vehicles.find((x) => x.id === t.vehicleId)
+                            return (
+                              <li key={`tr-${t.id}`} className="flex items-start gap-2">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                                <span>Unpaid transport — {t.carrier} ({t.invoiceRef || 'no invoice ref'}) for {v ? `${v.stockNumber} ${v.year} ${v.make} ${v.model}` : t.vehicleId}: <Money value={t.price} /> · {t.paymentStatus}.</span>
+                              </li>
+                            )
+                          })}
+                          {unpaidReceivables.map((r) => (
+                            <li key={`rc-${r.id}`} className="flex items-start gap-2">
+                              <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                              <span>Unpaid {r.kind.toLowerCase()} balance — {r.entityName} ({r.reference}): <Money value={r.total - r.paid} /> outstanding, due {r.dueDate} · {r.status}.</span>
+                            </li>
+                          ))}
+                          {lowStockParts.map((p) => (
+                            <li key={`ps-${p.id}`} className="flex items-start gap-2">
+                              <Package className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                              <span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span>
+                            </li>
+                          ))}
+                          {overdueFollowUps.map((l) => {
+                            const c = state.customers.find((x) => x.id === l.customerId)
+                            return (
+                              <li key={`fu-${l.id}`} className="flex items-start gap-2">
+                                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                                <span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </JXCard>
 
-        <JXCard title="AI forecast — next month" kicker="Forecast · not actuals" description="Projected from the average of the last 6 months of sales, with a trend adjustment. These are estimates, not recorded revenue or profit." className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-start gap-2">
-            <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Baseline forecast for next month: <Money value={fc.baseline} className="font-semibold text-slate-900 dark:text-white" /> revenue
-              and <Money value={fc.nextProfit} className="font-semibold text-slate-900 dark:text-white" /> profit
-              (margin {fc.marginPct.toFixed(1)}%).
-            </p>
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Conservative</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-slate-900 dark:text-white">{fmtMoney(fc.conservative)}</p>
-            </div>
-            <div className="rounded-xl bg-indigo-50 p-3 dark:bg-indigo-950">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Baseline</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-indigo-700 dark:text-indigo-200">{fmtMoney(fc.baseline)}</p>
-            </div>
-            <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Optimistic</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-emerald-700 dark:text-emerald-200">{fmtMoney(fc.optimistic)}</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Alert severity="info" title="Forecast only" description="Figures above are projections from past sales averages. They are not actuals and do not change any ledger, inventory value, or KPI on this page." />
-          </div>
-          <p className="mt-3 text-xs text-slate-400">
-            Recent sales: {state.sales.length === 0 ? 'none recorded yet.' : state.sales.map((s) => `${s.ref} ${fmtMoney(s.sellingPrice)}`).join(' · ')}
-          </p>
-        </JXCard>
-      </div>
-    </>
-  )
+                        <JXCard title="AI forecast — next month" kicker="Forecast · not actuals" description="Projected from the average of the last 6 months of sales, with a trend adjustment. These are estimates, not recorded revenue or profit." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                          <div className="flex items-start gap-2">
+                            <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                            <p className="text-sm text-slate-600 dark:text-slate-300">
+                              Baseline forecast for next month: <Money value={fc.baseline} className="font-semibold text-slate-900 dark:text-white" /> revenue
+                              and <Money value={fc.nextProfit} className="font-semibold text-slate-900 dark:text-white" /> profit
+                              (margin {fc.marginPct.toFixed(1)}%).
+                            </p>
+                          </div>
+                          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                              <div className="rounded-[var(--radius-control)] bg-slate-50 p-3 dark:bg-slate-900">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Conservative</p>
+                                <p className="mt-1 font-mono text-lg font-semibold text-slate-900 dark:text-white">{fmtMoney(fc.conservative)}</p>
+                              </div>
+                                <div className="rounded-[var(--radius-control)] bg-indigo-50 p-3 dark:bg-indigo-950">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">Baseline</p>
+                                  <p className="mt-1 font-mono text-lg font-semibold text-indigo-700 dark:text-indigo-200">{fmtMoney(fc.baseline)}</p>
+                                </div>
+                                  <div className="rounded-[var(--radius-control)] bg-emerald-50 p-3 dark:bg-emerald-950">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Optimistic</p>
+                                    <p className="mt-1 font-mono text-lg font-semibold text-emerald-700 dark:text-emerald-200">{fmtMoney(fc.optimistic)}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4">
+                                  <Alert severity="info" title="Forecast only" description="Figures above are projections from past sales averages. They are not actuals and do not change any ledger, inventory value, or KPI on this page." />
+                                </div>
+                                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                    Recent sales: {state.sales.length === 0 ? 'none recorded yet.' : state.sales.map((s) => `${s.ref} ${fmtMoney(s.sellingPrice)}`).join(' · ')}
+                                  </p>
+                                </JXCard>
+                              </div>
+                            </>
+                            )
 }

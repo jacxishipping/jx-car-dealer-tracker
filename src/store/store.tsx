@@ -413,13 +413,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             memo: `Payment ${rec.reference}`,
             lines: isCustomer
               ? [
-                  { account: acctName, debit: amount, credit: 0 },
-                  { account: 'Accounts Receivable', debit: 0, credit: amount },
-                ]
+                { account: acctName, debit: amount, credit: 0 },
+                { account: 'Accounts Receivable', debit: 0, credit: amount },
+              ]
               : [
-                  { account: 'Accounts Payable', debit: amount, credit: 0 },
-                  { account: acctName, debit: 0, credit: amount },
-                ],
+                { account: 'Accounts Payable', debit: amount, credit: 0 },
+                { account: acctName, debit: 0, credit: amount },
+              ],
             reversedBy: null,
             reversed: false,
           }
@@ -507,7 +507,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...local,
       // Role comes from the server (GET /api/state) — the in-app role
       // switcher is a demo control and must not override it in API mode.
-      setRole: () => {},
+      setRole: () => { },
       resetDemo: () => { reloadFromServer() },
       updateSettings: (patch) => { fire(serverApi.updateSettings(patch)) },
 
@@ -638,43 +638,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   if (apiMode && getToken() && apiStatus === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
-          <p className="mt-3 text-sm font-semibold text-slate-700">Loading your dealership…</p>
-          <p className="mt-1 text-xs text-slate-400">Fetching the latest data from the server.</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (apiMode && getToken() && apiStatus === 'error') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-bold text-slate-900">Could not load dealer data</h1>
-          <p className="mt-2 text-sm text-slate-500">{apiError}</p>
-          <p className="mt-1 text-sm text-slate-500">Check that the API server is running and reachable, then try again.</p>
-          <div className="mt-5 flex gap-2">
-            <button
-              type="button"
-              onClick={loadFromServer}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              onClick={() => { serverApi.clearTokens(); window.location.reload() }}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Sign out
-            </button>
+        <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg-light)] dark:bg-[var(--color-bg-dark)]">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+            <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Loading your dealership…</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Fetching the latest data from the server.</p>
           </div>
         </div>
-      </div>
-    )
+        )
   }
 
-  return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
+        if (apiMode && getToken() && apiStatus === 'error') {
+    return (
+            <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg-light)] px-4 dark:bg-[var(--color-bg-dark)]">
+              <div className="w-full max-w-md rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <h1 className="text-lg font-bold text-slate-900 dark:text-white">Could not load dealer data</h1>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{apiError}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Check that the API server is running and reachable, then try again.</p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={loadFromServer}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { serverApi.clearTokens(); window.location.reload() }}
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            </div>
+            )
+  }
+
+            return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
 }

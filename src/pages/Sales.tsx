@@ -3,7 +3,7 @@ import { JXAlert, JXButton, JXCard, JXSelect, JXTextField } from '@jacxishipping
 import { useStore } from '../store/store'
 import { dealProfit, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, usePagination } from '../components/ui'
+import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
 const num = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0 }
 const vehLabel = (v: { stockNumber: string; year: number; make: string; model: string }) => `${v.stockNumber} — ${v.year} ${v.make} ${v.model}`
@@ -121,195 +121,199 @@ export default function Sales() {
       <div className="grid gap-5 xl:grid-cols-5">
         {/* Deals table */}
         <div className="xl:col-span-3">
-          <JXCard title="Deals" description={`${filtered.length} deal${filtered.length === 1 ? '' : 's'}`}>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {['All', 'Draft', 'Negotiation', 'Finalized', 'Cancelled'].map((s) => (
-                <JXButton key={s} variant={statusFilter === s ? 'contained' : 'outlined'} size="sm" onClick={() => setStatusFilter(s)}>{s}</JXButton>
-              ))}
-            </div>
-            {pageItems.length === 0 ? (
-              <EmptyState title="No deals match" detail="Change the status filter or create a new deal." />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                    <th className="py-2 pr-2">Ref</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2">Status</th><th className="py-2" />
-                  </tr></thead>
-                  <tbody>
-                    {pageItems.map((d) => {
-                      const v = vehicles.find((x) => x.id === d.vehicleId)
-                      const c = customers.find((x) => x.id === d.customerId)
-                      return (
-                        <tr key={d.id} className={`border-b border-slate-100 dark:border-slate-800 ${selectedId === d.id ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}>
-                          <td className="py-2 pr-2 font-mono font-semibold">{d.ref}{d.saleRef && <span className="block text-xs font-normal text-slate-500">{d.saleRef}</span>}</td>
-                          <td className="py-2 pr-2">{v ? vehLabel(v) : '—'}</td>
-                          <td className="py-2 pr-2">{c?.name ?? '—'}</td>
-                          <td className="py-2 pr-2 text-right"><Money value={d.sellingPrice - d.discount} /></td>
-                          <td className="py-2 pr-2"><StatusChip value={d.status} /></td>
-                          <td className="py-2 text-right"><JXButton variant="text" size="sm" onClick={() => { setSelectedId(d.id); setFinalizeMsg(null) }}>View</JXButton></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {controls}
-          </JXCard>
-
-          {/* Sales history */}
-          <div className="mt-5">
-            <JXCard title="Sales history — realised profit" description="Only finalised sales appear here. Profit is the figure recorded at finalisation.">
-              {saleItems.length === 0 ? <EmptyState title="No sales yet" detail="Finalise a deal to record a sale." /> : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-sm">
-                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                      <th className="py-2 pr-2">Sale</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2 text-right">Net profit</th><th className="py-2 text-right">Margin</th>
-                    </tr></thead>
-                    <tbody>
-                      {saleItems.map((s) => {
-                        const v = vehicles.find((x) => x.id === s.vehicleId)
-                        const c = customers.find((x) => x.id === s.customerId)
-                        return (
-                          <tr key={s.id} className="border-b border-slate-100 dark:border-slate-800">
-                            <td className="py-2 pr-2 font-mono font-semibold">{s.ref}</td>
-                            <td className="py-2 pr-2">{v ? vehLabel(v) : '—'}</td>
-                            <td className="py-2 pr-2">{c?.name ?? '—'}</td>
-                            <td className="py-2 pr-2">{s.date}</td>
-                            <td className="py-2 pr-2 text-right"><Money value={s.sellingPrice} /></td>
-                            <td className={`py-2 pr-2 text-right font-semibold ${s.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}><Money value={s.netProfit} /></td>
-                            <td className="py-2 text-right">{s.marginPct.toFixed(1)}%</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {saleControls}
-            </JXCard>
-          </div>
-        </div>
-
-        {/* Deal detail / profitability */}
-        <div className="xl:col-span-2">
-          {!selected || !selVehicle || !profit ? (
-            <EmptyState title="No deal selected" detail="Select a deal from the table to see its cost breakdown and profitability." />
-          ) : (
-            <JXCard
-              title={`${selected.ref} — ${vehLabel(selVehicle)}`}
-              kicker={selected.status === 'Finalized' ? 'Finalised sale' : 'Estimate — not yet finalised'}
-              description={`Customer: ${selCustomer?.name ?? '—'} · Salesperson: ${selected.salesperson} · ${selected.paymentMethod} · Created ${selected.createdAt}${selected.finalizedAt ? ` · Finalised ${selected.finalizedAt}` : ''}`}
-            >
+            <JXCard title="Deals" description={`${filtered.length} deal${filtered.length === 1 ? '' : 's'}`}
+              className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
               <div className="mb-3 flex flex-wrap gap-2">
-                <StatusChip value={selected.status} />
-                <StatusChip value={selVehicle.status} />
-                {selected.saleRef && <span className="font-mono text-sm font-semibold text-indigo-600">{selected.saleRef}</span>}
+                {['All', 'Draft', 'Negotiation', 'Finalized', 'Cancelled'].map((s) => (
+                <JXButton key={s} variant={statusFilter === s ? 'contained' : 'outlined'} size="sm" lockWidth={false} onClick={() => setStatusFilter(s)}>{s}</JXButton>
+                ))}
               </div>
-
-              <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">
-                {selected.status === 'Finalized' && selSale ? 'Finalised result (recorded sale)' : 'Profitability estimate'}
-              </h3>
-              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-                {selected.status === 'Finalized'
-                  ? 'These are the realised figures recorded when the sale was finalised. Cost is the vehicle all-in cost at that time.'
-                  : 'Estimate only — based on the current all-in vehicle cost and the deal terms. It changes if costs, price or discount change, and is not a realised result until the sale is finalised.'}
-              </p>
-
-              <dl className="space-y-1.5 text-sm">
-                <div className="flex justify-between"><dt className="text-slate-500">Purchase price</dt><dd><Money value={selVehicle.purchasePrice} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Auction fees</dt><dd><Money value={selVehicle.auctionFees} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Transport cost</dt><dd><Money value={selVehicle.transportCost} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Direct expenses (recon / repairs)</dt><dd><Money value={profit.direct} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Parts (FIFO allocations)</dt><dd><Money value={profit.parts} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Allocated overhead</dt><dd><Money value={settings.overheadPerVehicle} /></dd></div>
-                <div className="flex justify-between border-t border-slate-200 pt-1.5 font-semibold dark:border-slate-800"><dt>Total cost (all-in)</dt><dd><Money value={profit.totalCost} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Selling price</dt><dd><Money value={selected.sellingPrice} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Discount</dt><dd>−<Money value={selected.discount} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Net selling price</dt><dd><Money value={selected.sellingPrice - selected.discount} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Selling expenses (taxes {fmtMoney(selected.taxes)} + fees {fmtMoney(selected.fees)})</dt><dd><Money value={profit.p.sellingExpenses} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Deposit paid</dt><dd><Money value={selected.deposit} /></dd></div>
-                {selected.tradeInValue > 0 && <div className="flex justify-between"><dt className="text-slate-500">Trade-in: {selected.tradeInDesc || '—'}</dt><dd><Money value={selected.tradeInValue} /></dd></div>}
-                <div className="flex justify-between border-t border-slate-200 pt-1.5 font-semibold dark:border-slate-800"><dt>Gross profit</dt><dd><Money value={selSale?.grossProfit ?? profit.p.grossProfit} /></dd></div>
-                <div className={`flex justify-between font-semibold ${(selSale?.netProfit ?? profit.p.netProfit) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}><dt>Net profit</dt><dd><Money value={selSale?.netProfit ?? profit.p.netProfit} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Margin (net ÷ net selling)</dt><dd>{(selSale?.marginPct ?? profit.p.marginPct).toFixed(1)}%</dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">ROI (net ÷ total cost)</dt><dd>{profit.p.roiPct.toFixed(1)}%</dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Break-even price</dt><dd><Money value={profit.p.breakEven} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Vehicle minimum price</dt><dd><Money value={selVehicle.minPrice} /></dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Asking price</dt><dd><Money value={selVehicle.askingPrice} /></dd></div>
-              </dl>
-
-              {selected.status !== 'Finalized' && selected.status !== 'Cancelled' && (
-                <div className="mt-4">
-                  <JXAlert severity={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? 'warning' : 'info'} title={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? 'Below break-even' : 'Ready to finalise?'} description={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? `Net selling price is below the break-even price of ${fmtMoney(profit.p.breakEven)}. Finalising will record a loss.` : `Finalising marks ${selVehicle.stockNumber} Sold, records the sale and its profit, and moves the customer's lead to Sold.`} />
-                  <div className="mt-3"><JXButton variant="contained" color="success" onClick={onFinalize}>Finalize sale</JXButton></div>
-                  <p className="mt-2 text-xs text-slate-500">Finalising validates in the store: the vehicle must be Available or Reserved and not already sold.</p>
-                </div>
-              )}
-              {selected.status === 'Finalized' && selSale && (
-                <p className="mt-4 text-xs text-slate-500">Recorded sale {selSale.ref} on {selSale.date}: price <Money value={selSale.sellingPrice} />, total cost <Money value={selSale.totalCost} />, gross <Money value={selSale.grossProfit} />, net <Money value={selSale.netProfit} />.</p>
-              )}
-            </JXCard>
-          )}
-        </div>
-      </div>
-
-      {showNew && (
-        <Modal title="New deal" onClose={() => setShowNew(false)} wide>
-          {formError && <div className="mb-3"><Alert severity="error" title="Check the form" description={formError} /></div>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Vehicle — Available / Reserved only">
-              <JXSelect searchable placeholder="Select a vehicle" value={vehicleId} onChange={setVehicleId}
-                options={sellable.map((v) => ({ id: v.id, label: `${vehLabel(v)} · ${v.status} · asking ${fmtMoney(v.askingPrice)}` }))} />
-            </Field>
-            <Field label="Salesperson">
-              <input className={inputCls} value={currentUser} disabled />
-            </Field>
-            <div className="sm:col-span-2">
-              <JXButton variant={newCust ? 'contained' : 'outlined'} size="sm" onClick={() => setNewCust(false)}>Existing customer</JXButton>{' '}
-              <JXButton variant={newCust ? 'outlined' : 'contained'} size="sm" onClick={() => setNewCust(true)}>Create new customer</JXButton>
-            </div>
-            {newCust ? (
-              <>
-                <Field label="Customer name *"><JXTextField value={custName} onChange={setCustName} placeholder="Full name" /></Field>
-                <Field label="Phone"><JXTextField value={custPhone} onChange={setCustPhone} placeholder="+971 …" /></Field>
-                <Field label="Email"><JXTextField value={custEmail} onChange={setCustEmail} placeholder="name@example.com" /></Field>
-                <Field label="Salesperson"><JXTextField value={custSalesperson} onChange={setCustSalesperson} /></Field>
-              </>
-            ) : (
-              <div className="sm:col-span-2">
-                <Field label="Customer">
-                  <JXSelect searchable placeholder="Select a customer" value={customerId} onChange={setCustomerId}
-                    options={customers.map((c) => ({ id: c.id, label: `${c.name} · budget ${fmtMoney(c.budget)} · ${c.salesperson}` }))} />
-                </Field>
-              </div>
+              {pageItems.length === 0 ? (
+                <EmptyState title="No deals match" detail="Change the status filter or create a new deal." />
+              ) : (
+                  <>
+                    <TableScrollHint />
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-sm">
+                          <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                            <th className="py-2 pr-2">Ref</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2">Status</th><th className="py-2" />
+                          </tr></thead>
+                          <tbody>
+                              {
+                                pageItems.map((d) => {
+                                  const v = vehicles.find((x) => x.id === d.vehicleId)
+                                  const c = customers.find((x) => x.id === d.customerId)
+                                  return (
+                                      <tr key={d.id} className={`border-b border-slate-100 dark:border-slate-700 ${selectedId === d.id ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}>
+                                        <td className="py-2 pr-2 font-mono font-semibold">{d.ref}{d.saleRef && <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">{d.saleRef}</span>}</td>
+                                        <td className="py-2 pr-2">{v ? vehLabel(v) : '—'}</td>
+                                        <td className="py-2 pr-2">{c?.name ?? '—'}</td>
+                                        <td className="py-2 pr-2 text-right"><Money value={d.sellingPrice - d.discount} /></td>
+                                        <td className="py-2 pr-2"><StatusChip value={d.status} /></td>
+                                        <td className="py-2 text-right"><JXButton variant="text" size="sm" lockWidth={false} onClick={() => { setSelectedId(d.id); setFinalizeMsg(null) }}>View</JXButton></td>
+                                      </tr>
+                                      )
+                      })}
+                                    </tbody>
+                  </table>
+                        </div>
+                        </>
             )}
-            <Field label="Selling price *"><input className={inputCls} type="number" min="0" step="0.01" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="e.g. 25400" /></Field>
-            <Field label="Discount"><input className={inputCls} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
-            <Field label="Taxes"><input className={inputCls} type="number" min="0" step="0.01" value={taxes} onChange={(e) => setTaxes(e.target.value)} /></Field>
-            <Field label="Fees"><input className={inputCls} type="number" min="0" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} /></Field>
-            <Field label="Deposit"><input className={inputCls} type="number" min="0" step="0.01" value={deposit} onChange={(e) => setDeposit(e.target.value)} /></Field>
-            <Field label="Trade-in value"><input className={inputCls} type="number" min="0" step="0.01" value={tradeInValue} onChange={(e) => setTradeInValue(e.target.value)} /></Field>
-            <Field label="Trade-in description" hint="Vehicle offered in part-exchange, if any"><JXTextField value={tradeInDesc} onChange={setTradeInDesc} placeholder="e.g. 2015 Corolla, 120k km" /></Field>
-            <Field label="Payment method">
-              <JXSelect value={paymentMethod} onChange={setPaymentMethod} options={['Bank transfer', 'Cash', 'Finance', 'Card'].map((m) => ({ id: m, label: m }))} />
-            </Field>
-          </div>
-          {formVehicle && formCost !== null && (
-            <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">
-              <p className="font-semibold">Live estimate for {vehLabel(formVehicle)}</p>
-              <p className="text-slate-600 dark:text-slate-300">All-in cost <Money value={formCost} /> · minimum price <Money value={formVehicle.minPrice} />
-                {formProfit && <> · estimated net profit <Money value={formProfit.netProfit} /> ({formProfit.marginPct.toFixed(1)}% margin) · break-even <Money value={formProfit.breakEven} /></>}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">Estimate only — final figures are fixed when the sale is finalised.</p>
-            </div>
+                        {controls}
+                      </JXCard>
+
+                      {/* Sales history */}
+                      <div className="mt-5">
+                        <JXCard title="Sales history — realised profit" description="Only finalised sales appear here. Profit is the figure recorded at finalisation."
+                          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                          {saleItems.length === 0 ? <EmptyState title="No sales yet" detail="Finalise a deal to record a sale." /> : (
+                            <>
+                              <TableScrollHint />
+                              <div className="overflow-x-auto">
+                                <table className="w-full min-w-[640px] text-sm">
+                                  <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                    <th className="py-2 pr-2">Sale</th><th className="py-2 pr-2">Vehicle</th><th className="py-2 pr-2">Customer</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Price</th><th className="py-2 pr-2 text-right">Net profit</th><th className="py-2 text-right">Margin</th>
+                                  </tr></thead>
+                                  <tbody>
+                                    {saleItems.map((s) => {
+                                      const v = vehicles.find((x) => x.id === s.vehicleId)
+                                      const c = customers.find((x) => x.id === s.customerId)
+                                      return (
+                                        <tr key={s.id} className="border-b border-slate-100 dark:border-slate-700">
+                                          <td className="py-2 pr-2 font-mono font-semibold">{s.ref}</td>
+                                          <td className="py-2 pr-2">{v ? vehLabel(v) : '—'}</td>
+                                          <td className="py-2 pr-2">{c?.name ?? '—'}</td>
+                                          <td className="py-2 pr-2">{s.date}</td>
+                                          <td className="py-2 pr-2 text-right"><Money value={s.sellingPrice} /></td>
+                                          <td className={`py-2 pr-2 text-right font-semibold ${s.netProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}><Money value={s.netProfit} /></td>
+                                          <td className="py-2 text-right">{s.marginPct.toFixed(1)}%</td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          )}
+                          {saleControls}
+                        </JXCard>
+                      </div>
+                    </div>
+
+                    {/* Deal detail / profitability */}
+                    <div className="xl:col-span-2">
+                      {!selected || !selVehicle || !profit ? (
+                        <EmptyState title="No deal selected" detail="Select a deal from the table to see its cost breakdown and profitability." />
+                      ) : (
+                        <JXCard
+                          title={`${selected.ref} — ${vehLabel(selVehicle)}`}
+                          kicker={selected.status === 'Finalized' ? 'Finalised sale' : 'Estimate — not yet finalised'}
+                          description={`Customer: ${selCustomer?.name ?? '—'} · Salesperson: ${selected.salesperson} · ${selected.paymentMethod} · Created ${selected.createdAt}${selected.finalizedAt ? ` · Finalised ${selected.finalizedAt}` : ''}`}
+                          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]"
+                        >
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            <StatusChip value={selected.status} />
+                            <StatusChip value={selVehicle.status} />
+                            {selected.saleRef && <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{selected.saleRef}</span>}
+                          </div>
+
+                          <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">
+                            {selected.status === 'Finalized' && selSale ? 'Finalised result (recorded sale)' : 'Profitability estimate'}
+                          </h3>
+                          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                            {selected.status === 'Finalized'
+                              ? 'These are the realised figures recorded when the sale was finalised. Cost is the vehicle all-in cost at that time.'
+                              : 'Estimate only — based on the current all-in vehicle cost and the deal terms. It changes if costs, price or discount change, and is not a realised result until the sale is finalised.'}
+                          </p>
+
+                          <dl className="space-y-1.5 text-sm">
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Purchase price</dt><dd><Money value={selVehicle.purchasePrice} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Auction fees</dt><dd><Money value={selVehicle.auctionFees} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Transport cost</dt><dd><Money value={selVehicle.transportCost} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Direct expenses (recon / repairs)</dt><dd><Money value={profit.direct} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Parts (FIFO allocations)</dt><dd><Money value={profit.parts} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Allocated overhead</dt><dd><Money value={settings.overheadPerVehicle} /></dd></div>
+                            <div className="flex justify-between border-t border-slate-200 pt-1.5 font-semibold dark:border-slate-700"><dt>Total cost (all-in)</dt><dd><Money value={profit.totalCost} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Selling price</dt><dd><Money value={selected.sellingPrice} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Discount</dt><dd>−<Money value={selected.discount} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Net selling price</dt><dd><Money value={selected.sellingPrice - selected.discount} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Selling expenses (taxes {fmtMoney(selected.taxes)} + fees {fmtMoney(selected.fees)})</dt><dd><Money value={profit.p.sellingExpenses} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Deposit paid</dt><dd><Money value={selected.deposit} /></dd></div>
+                            {selected.tradeInValue > 0 && <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Trade-in: {selected.tradeInDesc || '—'}</dt><dd><Money value={selected.tradeInValue} /></dd></div>}
+                            <div className="flex justify-between border-t border-slate-200 pt-1.5 font-semibold dark:border-slate-700"><dt>Gross profit</dt><dd><Money value={selSale?.grossProfit ?? profit.p.grossProfit} /></dd></div>
+                            <div className={`flex justify-between font-semibold ${(selSale?.netProfit ?? profit.p.netProfit) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}><dt>Net profit</dt><dd><Money value={selSale?.netProfit ?? profit.p.netProfit} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Margin (net ÷ net selling)</dt><dd>{(selSale?.marginPct ?? profit.p.marginPct).toFixed(1)}%</dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">ROI (net ÷ total cost)</dt><dd>{profit.p.roiPct.toFixed(1)}%</dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Break-even price</dt><dd><Money value={profit.p.breakEven} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Vehicle minimum price</dt><dd><Money value={selVehicle.minPrice} /></dd></div>
+                            <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Asking price</dt><dd><Money value={selVehicle.askingPrice} /></dd></div>
+                          </dl>
+
+                          {selected.status !== 'Finalized' && selected.status !== 'Cancelled' && (
+                            <div className="mt-4">
+                              <JXAlert severity={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? 'warning' : 'info'} title={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? 'Below break-even' : 'Ready to finalise?'} description={(selected.sellingPrice - selected.discount) < profit.p.breakEven ? `Net selling price is below the break-even price of ${fmtMoney(profit.p.breakEven)}. Finalising will record a loss.` : `Finalising marks ${selVehicle.stockNumber} Sold, records the sale and its profit, and moves the customer's lead to Sold.`} />
+                              <div className="mt-3"><JXButton variant="contained" color="success" lockWidth={false} onClick={onFinalize}>Finalize sale</JXButton></div>
+                              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Finalising validates in the store: the vehicle must be Available or Reserved and not already sold.</p>
+                            </div>
+                          )}
+                          {selected.status === 'Finalized' && selSale && (
+                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Recorded sale {selSale.ref} on {selSale.date}: price <Money value={selSale.sellingPrice} />, total cost <Money value={selSale.totalCost} />, gross <Money value={selSale.grossProfit} />, net <Money value={selSale.netProfit} />.</p>
+                          )}
+                        </JXCard>
+                      )}
+                    </div>
+                  </div>
+
+                {showNew && (
+                  <Modal title="New deal" onClose={() => setShowNew(false)} wide>
+                    {formError && <div className="mb-3"><Alert severity="error" title="Check the form" description={formError} /></div>}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <JXSelect label="Vehicle — Available / Reserved only" className="jx-select-field jx-field-select" searchable placeholder="Select a vehicle" value={vehicleId} onChange={setVehicleId}
+                        options={sellable.map((v) => ({ id: v.id, label: `${vehLabel(v)} · ${v.status} · asking ${fmtMoney(v.askingPrice)}` }))} />
+                      <Field label="Salesperson">
+                        <input className={inputCls} value={currentUser} disabled />
+                      </Field>
+                        <div className="flex flex-wrap gap-2 sm:col-span-2">
+                          <JXButton variant={newCust ? 'contained' : 'outlined'} size="sm" lockWidth={false} onClick={() => setNewCust(false)}>Existing customer</JXButton>
+                          <JXButton variant={newCust ? 'outlined' : 'contained'} size="sm" lockWidth={false} onClick={() => setNewCust(true)}>Create new customer</JXButton>
+                        </div>
+                        {newCust ? (
+                          <>
+                            <Field label="Customer name *"><JXTextField className="jx-text-field" label="" value={custName} onChange={setCustName} placeholder="Full name" /></Field>
+                            <Field label="Phone"><JXTextField className="jx-text-field" label="" value={custPhone} onChange={setCustPhone} placeholder="+971 …" /></Field>
+                            <Field label="Email"><JXTextField className="jx-text-field" label="" value={custEmail} onChange={setCustEmail} placeholder="name@example.com" /></Field>
+                            <Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={custSalesperson} onChange={setCustSalesperson} /></Field>
+                          </>
+                        ) : (
+                          <div className="sm:col-span-2">
+                            <JXSelect label="Customer" className="jx-select-field jx-field-select" searchable placeholder="Select a customer" value={customerId} onChange={setCustomerId}
+                              options={customers.map((c) => ({ id: c.id, label: `${c.name} · budget ${fmtMoney(c.budget)} · ${c.salesperson}` }))} />
+                          </div>
+                        )}
+                        <Field label="Selling price *"><input className={inputCls} type="number" min="0" step="0.01" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="e.g. 25400" /></Field>
+                        <Field label="Discount"><input className={inputCls} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
+                        <Field label="Taxes"><input className={inputCls} type="number" min="0" step="0.01" value={taxes} onChange={(e) => setTaxes(e.target.value)} /></Field>
+                        <Field label="Fees"><input className={inputCls} type="number" min="0" step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} /></Field>
+                        <Field label="Deposit"><input className={inputCls} type="number" min="0" step="0.01" value={deposit} onChange={(e) => setDeposit(e.target.value)} /></Field>
+                        <Field label="Trade-in value"><input className={inputCls} type="number" min="0" step="0.01" value={tradeInValue} onChange={(e) => setTradeInValue(e.target.value)} /></Field>
+                        <Field label="Trade-in description" hint="Vehicle offered in part-exchange, if any"><JXTextField className="jx-text-field" label="" value={tradeInDesc} onChange={setTradeInDesc} placeholder="e.g. 2015 Corolla, 120k km" /></Field>
+                        <JXSelect label="Payment method" className="jx-select-field jx-field-select" value={paymentMethod} onChange={setPaymentMethod} options={['Bank transfer', 'Cash', 'Finance', 'Card'].map((m) => ({ id: m, label: m }))} />
+                      </div>
+                      {formVehicle && formCost !== null && (
+                          <div className="mt-4 rounded-[var(--radius-control)] bg-slate-50 p-3 text-sm dark:bg-slate-900">
+                            <p className="font-semibold">Live estimate for {vehLabel(formVehicle)}</p>
+                            <p className="text-slate-600 dark:text-slate-300">All-in cost <Money value={formCost} /> · minimum price <Money value={formVehicle.minPrice} />
+                              {formProfit && <> · estimated net profit <Money value={formProfit.netProfit} /> ({formProfit.marginPct.toFixed(1)}% margin) · break-even <Money value={formProfit.breakEven} /></>}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Estimate only — final figures are fixed when the sale is finalised.</p>
+                          </div>
           )}
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" onClick={() => setShowNew(false)}>Cancel</JXButton>
-            <JXButton variant="contained" onClick={submitDeal}>Create deal (Draft)</JXButton>
-          </div>
-        </Modal>
-      )}
-    </>
-  )
+                          <div className="mt-5 flex flex-wrap justify-end gap-2">
+                            <JXButton variant="outlined" onClick={() => setShowNew(false)}>Cancel</JXButton>
+                            <JXButton variant="contained" onClick={submitDeal}>Create deal (Draft)</JXButton>
+                          </div>
+                        </Modal>
+                      )}
+                    </>
+                    )
 }

@@ -3,7 +3,7 @@ import { JXButton, JXCard, JXSelect, JXTextField } from '@jacxishippingorg/jx-ui
 import { useStore } from '../store/store'
 import { partStock, partValue } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, usePagination } from '../components/ui'
+import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, TableScrollHint, usePagination } from '../components/ui'
 
 export default function Parts() {
   const { state, receivePartBatch, allocatePart, addPart } = useStore()
@@ -131,80 +131,91 @@ export default function Parts() {
       <div className="grid gap-5 xl:grid-cols-5">
         {/* Catalog */}
         <div className="xl:col-span-3">
-          <JXCard title="Parts catalog" description={`${filteredParts.length} part${filteredParts.length === 1 ? '' : 's'} · stock and value are FIFO figures from live batches`}>
-            <div className="mb-3"><JXTextField value={search} onChange={setSearch} placeholder="Search part, SKU, manufacturer, supplier…" /></div>
-            {filteredParts.length === 0 ? (
-              <EmptyState title="No parts match" detail="Adjust the search." />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                    <th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Supplier</th><th className="py-2 pr-2 text-right">Stock</th><th className="py-2 pr-2 text-right">Min</th><th className="py-2 pr-2 text-right">FIFO value</th><th className="py-2" />
-                  </tr></thead>
-                  <tbody>
-                    {filteredParts.map((p) => {
-                      const stock = partStock(partBatches, p.id)
-                      const low = stock <= p.minStock
-                      return (
-                        <tr key={p.id} className={`border-b border-slate-100 dark:border-slate-800 ${selectedPartId === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}>
-                          <td className="py-2 pr-2"><span className="font-semibold text-slate-900 dark:text-white">{p.name}</span><span className="block font-mono text-xs text-slate-500">{p.sku} · {p.manufacturer}</span></td>
-                          <td className="py-2 pr-2">{p.supplier}</td>
-                          <td className={`py-2 pr-2 text-right font-semibold ${low ? 'text-rose-600' : ''}`}>{stock}{low && <span className="block text-xs font-normal">REORDER</span>}</td>
-                          <td className="py-2 pr-2 text-right">{p.minStock}</td>
-                          <td className="py-2 pr-2 text-right"><Money value={partValue(partBatches, p.id)} /></td>
-                          <td className="py-2 text-right"><JXButton variant="text" size="sm" onClick={() => setSelectedPartId(p.id)}>Batches</JXButton></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+            <JXCard title="Parts catalog" description={`${filteredParts.length} part${filteredParts.length === 1 ? '' : 's'} · stock and value are FIFO figures from live batches`}
+              className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <div className="mb-3">
+                <label htmlFor="parts-search" className="sr-only">Search parts by name, SKU, manufacturer, or supplier</label>
+                <JXTextField id="parts-search" className="jx-text-field" label="" aria-label="Search parts by name, SKU, manufacturer, or supplier" value={search} onChange={setSearch} placeholder="Search part, SKU, manufacturer, supplier…" />
               </div>
-            )}
-          </JXCard>
-
-          {/* Movements */}
-          <div className="mt-5">
-            <JXCard title="Movements history" description="Purchases in, FIFO consumption out, returns and adjustments — and counter sales (type 'sale').">
-              <div className="mb-3 flex flex-wrap gap-2">
-                {['All', 'purchase', 'consume', 'sale', 'return', 'adjust'].map((t) => (
-                  <JXButton key={t} variant={movementFilter === t ? 'contained' : 'outlined'} size="sm" onClick={() => setMovementFilter(t)}>{t === 'All' ? 'All' : t}</JXButton>
-                ))}
-              </div>
-              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-                Counter-sale note: parts sold over the counter are recorded as movements of type &lsquo;sale&rsquo; and shown here — there is no separate counter-sale action in the store.
-                Seed FIFO example: 12 brake pads to CDT-103 cost $620 (10 @ $50 from batch b-001 + 2 @ $60 from batch b-002).
-              </p>
-              {movementItems.length === 0 ? (
-                <EmptyState title="No movements of this type" detail="Change the movement filter." />
+              {filteredParts.length === 0 ? (
+                <EmptyState title="No parts match" detail="Adjust the search." />
               ) : (
+              <>
+                <TableScrollHint />
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-sm">
-                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                      <th className="py-2 pr-2">Date</th><th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Type</th><th className="py-2 pr-2 text-right">Qty</th><th className="py-2 pr-2 text-right">Unit cost</th><th className="py-2 pr-2 text-right">Total</th><th className="py-2 pr-2">Vehicle / note</th>
+                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      <th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Supplier</th><th className="py-2 pr-2 text-right">Stock</th><th className="py-2 pr-2 text-right">Min</th><th className="py-2 pr-2 text-right">FIFO value</th><th className="py-2" />
                     </tr></thead>
                     <tbody>
-                      {movementItems.map((m) => {
-                        const p = parts.find((x) => x.id === m.partId)
-                        const v = m.vehicleId ? vehicles.find((x) => x.id === m.vehicleId) : undefined
+                      {filteredParts.map((p) => {
+                        const stock = partStock(partBatches, p.id)
+                        const low = stock <= p.minStock
                         return (
-                          <tr key={m.id} className="border-b border-slate-100 dark:border-slate-800">
-                            <td className="py-2 pr-2">{m.date}</td>
-                            <td className="py-2 pr-2">{p ? `${p.name} (${p.sku})` : m.partId}</td>
-                            <td className="py-2 pr-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${m.type === 'purchase' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' : m.type === 'sale' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'}`}>{m.type}</span></td>
-                            <td className={`py-2 pr-2 text-right font-semibold ${m.qty < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{m.qty > 0 ? `+${m.qty}` : m.qty}</td>
-                            <td className="py-2 pr-2 text-right"><Money value={m.unitCost} /></td>
-                            <td className="py-2 pr-2 text-right"><Money value={m.totalCost} /></td>
-                            <td className="py-2 pr-2 text-xs text-slate-500">{v ? v.stockNumber : ''}{v && m.note ? ' · ' : ''}{m.note}</td>
+                          <tr key={p.id} className={`border-b border-slate-100 dark:border-slate-700 ${selectedPartId === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}>
+                            <td className="py-2 pr-2"><span className="font-semibold text-slate-900 dark:text-white">{p.name}</span><span className="block font-mono text-xs text-slate-500 dark:text-slate-400">{p.sku} · {p.manufacturer}</span></td>
+                            <td className="py-2 pr-2">{p.supplier}</td>
+                            <td className={`py-2 pr-2 text-right font-semibold ${low ? 'text-rose-600 dark:text-rose-400' : ''}`}>{stock}{low && <span className="block text-xs font-normal">REORDER</span>}</td>
+                            <td className="py-2 pr-2 text-right">{p.minStock}</td>
+                            <td className="py-2 pr-2 text-right"><Money value={partValue(partBatches, p.id)} /></td>
+                            <td className="py-2 text-right"><JXButton variant="text" size="sm" lockWidth={false} onClick={() => setSelectedPartId(p.id)}>Batches</JXButton></td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
                 </div>
+              </>
               )}
-              {movementControls}
             </JXCard>
-          </div>
+
+            {/* Movements */}
+            <div className="mt-5">
+                <JXCard title="Movements history" description="Purchases in, FIFO consumption out, returns and adjustments — and counter sales (type 'sale')."
+                  className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {['All', 'purchase', 'consume', 'sale', 'return', 'adjust'].map((t) => (
+                  <JXButton key={t} variant={movementFilter === t ? 'contained' : 'outlined'} size="sm" lockWidth={false} onClick={() => setMovementFilter(t)}>{t === 'All' ? 'All' : t}</JXButton>
+                    ))}
+                  </div>
+                  <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                    Counter-sale note: parts sold over the counter are recorded as movements of type &lsquo;sale&rsquo; and shown here — there is no separate counter-sale action in the store.
+                    Seed FIFO example: 12 brake pads to CDT-103 cost $620 (10 @ $50 from batch b-001 + 2 @ $60 from batch b-002).
+                  </p>
+                  {movementItems.length === 0 ? (
+                    <EmptyState title="No movements of this type" detail="Change the movement filter." />
+                  ) : (
+                <>
+                  <TableScrollHint />
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <th className="py-2 pr-2">Date</th><th className="py-2 pr-2">Part</th><th className="py-2 pr-2">Type</th><th className="py-2 pr-2 text-right">Qty</th><th className="py-2 pr-2 text-right">Unit cost</th><th className="py-2 pr-2 text-right">Total</th><th className="py-2 pr-2">Vehicle / note</th>
+                      </tr></thead>
+                      <tbody>
+                        {movementItems.map((m) => {
+                          const p = parts.find((x) => x.id === m.partId)
+                          const v = m.vehicleId ? vehicles.find((x) => x.id === m.vehicleId) : undefined
+                          return (
+                            <tr key={m.id} className="border-b border-slate-100 dark:border-slate-700">
+                              <td className="py-2 pr-2">{m.date}</td>
+                              <td className="py-2 pr-2">{p ? `${p.name} (${p.sku})` : m.partId}</td>
+                              <td className="py-2 pr-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${m.type === 'purchase' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' : m.type === 'sale' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'}`}>{m.type}</span></td>
+                              <td className={`py-2 pr-2 text-right font-semibold ${m.qty < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{m.qty > 0 ? `+${m.qty}` : m.qty}</td>
+                              <td className="py-2 pr-2 text-right"><Money value={m.unitCost} /></td>
+                              <td className="py-2 pr-2 text-right"><Money value={m.totalCost} /></td>
+                              <td className="py-2 pr-2 text-xs text-slate-500 dark:text-slate-400">{v ? v.stockNumber : ''}{v && m.note ? ' · ' : ''}{m.note}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+                  )}
+                  {movementControls}
+                </JXCard>
+            </div>
         </div>
 
         {/* Part detail + allocate */}
@@ -216,106 +227,108 @@ export default function Parts() {
               title={`${selectedPart.name} (${selectedPart.sku})`}
               kicker={partStock(partBatches, selectedPart.id) <= selectedPart.minStock ? 'Reorder — at or below minimum stock' : 'In stock'}
               description={`${selectedPart.manufacturer} · supplied by ${selectedPart.supplier} · min stock ${selectedPart.minStock} · on hand ${partStock(partBatches, selectedPart.id)} · FIFO value ${fmtMoney(partValue(partBatches, selectedPart.id))}`}
+              className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]"
             >
               <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Batches (oldest first — FIFO order)</h3>
-              {selectedBatches.length === 0 ? <p className="mb-3 text-sm text-slate-500">No batches on record.</p> : (
-                <div className="mb-4 overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-sm">
-                    <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                      <th className="py-2 pr-2">Batch</th><th className="py-2 pr-2">Invoice</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Remaining</th><th className="py-2 text-right">Unit price</th>
-                    </tr></thead>
-                    <tbody>
-                      {selectedBatches.map((b) => (
-                        <tr key={b.id} className="border-b border-slate-100 dark:border-slate-800">
-                          <td className="py-2 pr-2 font-mono">{b.id}</td>
-                          <td className="py-2 pr-2 font-mono">{b.invoice}</td>
-                          <td className="py-2 pr-2">{b.purchaseDate}</td>
-                          <td className="py-2 pr-2 text-right">{b.qtyRemaining} / {b.qtyReceived}</td>
-                          <td className="py-2 text-right"><Money value={b.unitPrice} /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              {selectedBatches.length === 0 ? <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">No batches on record.</p> : (
+                <>
+                  <TableScrollHint />
+                  <div className="mb-4 overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead><tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <th className="py-2 pr-2">Batch</th><th className="py-2 pr-2">Invoice</th><th className="py-2 pr-2">Date</th><th className="py-2 pr-2 text-right">Remaining</th><th className="py-2 text-right">Unit price</th>
+                      </tr></thead>
+                      <tbody>
+                        {selectedBatches.map((b) => (
+                          <tr key={b.id} className="border-b border-slate-100 dark:border-slate-700">
+                            <td className="py-2 pr-2 font-mono">{b.id}</td>
+                            <td className="py-2 pr-2 font-mono">{b.invoice}</td>
+                            <td className="py-2 pr-2">{b.purchaseDate}</td>
+                            <td className="py-2 pr-2 text-right">{b.qtyRemaining} / {b.qtyReceived}</td>
+                            <td className="py-2 text-right"><Money value={b.unitPrice} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
               <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Allocations to vehicles</h3>
-              {selectedAllocations.length === 0 ? <p className="text-sm text-slate-500">No allocations yet.</p> : (
-                <ul className="space-y-2 text-sm">
-                  {selectedAllocations.map((a) => {
-                    const v = vehicles.find((x) => x.id === a.vehicleId)
-                    return (
-                      <li key={a.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-                        {a.qty} × to {v ? `${v.stockNumber} (${v.year} ${v.make} ${v.model})` : a.vehicleId} on {a.date} — FIFO cost <Money value={a.fifoCost} />
-                        <span className="block text-xs text-slate-500">{a.batches.map((s) => `${s.qty} @ ${fmtMoney(s.unitPrice)} (${s.batchId})`).join(' + ')}</span>
-                      </li>
-                    )
+                {
+                  selectedAllocations.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No allocations yet.</p> : (
+                    <ul className="space-y-2 text-sm">
+                      {selectedAllocations.map((a) => {
+                        const v = vehicles.find((x) => x.id === a.vehicleId)
+                        return (
+                            <li key={a.id} className="rounded-[var(--radius-control)] border border-slate-200 p-3 dark:border-slate-700">
+                              {a.qty} × to {v ? `${v.stockNumber} (${v.year} ${v.make} ${v.model})` : a.vehicleId} on {a.date} — FIFO cost <Money value={a.fifoCost} />
+                              <span className="block text-xs text-slate-500 dark:text-slate-400">{a.batches.map((s) => `${s.qty} @ ${fmtMoney(s.unitPrice)} (${s.batchId})`).join(' + ')}</span>
+                            </li>
+                            )
                   })}
-                </ul>
-              )}
+                          </ul>
+                        )
+                      }
             </JXCard>
-          )}
+                  )
+                }
 
-          <JXCard title="Allocate to vehicle" description="Consumes the oldest batches first (FIFO). The returned FIFO cost is shown below — and the store's insufficient-stock error if there is not enough stock.">
-            {allocResult && <div className="mb-3"><Alert severity={allocResult.ok ? 'success' : 'error'} title={allocResult.ok ? 'Allocated' : 'Cannot allocate'} description={allocResult.text} /></div>}
-            <div className="space-y-3">
-              <Field label="Part">
-                <JXSelect searchable placeholder="Select a part" value={allocPartId} onChange={(v) => { setAllocPartId(v); setAllocResult(null) }}
-                  options={parts.map((p) => ({ id: p.id, label: `${p.name} (${p.sku}) · ${partStock(partBatches, p.id)} in stock` }))} />
-              </Field>
-              <Field label="Vehicle">
-                <JXSelect searchable placeholder="Select a vehicle" value={allocVehicleId} onChange={setAllocVehicleId}
-                  options={vehicles.map((v) => ({ id: v.id, label: `${v.stockNumber} — ${v.year} ${v.make} ${v.model} · ${v.status}` }))} />
-              </Field>
-              <Field label="Quantity" hint={allocPart ? `${allocStock} available` : undefined}>
-                <input className={inputCls} type="number" min="1" step="1" value={allocQty} onChange={(e) => setAllocQty(e.target.value)} placeholder="e.g. 12" />
-              </Field>
-              <JXButton variant="contained" onClick={submitAllocate}>Allocate (FIFO)</JXButton>
-              <p className="text-xs text-slate-500">Example from the seed data: allocating 12 brake pads to CDT-103 cost $620 — 10 @ $50 + 2 @ $60.</p>
+              <JXCard title="Allocate to vehicle" description="Consumes the oldest batches first (FIFO). The returned FIFO cost is shown below — and the store's insufficient-stock error if there is not enough stock."
+                className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                {allocResult && <div className="mb-3"><Alert severity={allocResult.ok ? 'success' : 'error'} title={allocResult.ok ? 'Allocated' : 'Cannot allocate'} description={allocResult.text} /></div>}
+                <div className="space-y-3">
+                  <JXSelect label="Part" className="jx-select-field jx-field-select" searchable placeholder="Select a part" value={allocPartId} onChange={(v) => { setAllocPartId(v); setAllocResult(null) }}
+                    options={parts.map((p) => ({ id: p.id, label: `${p.name} (${p.sku}) · ${partStock(partBatches, p.id)} in stock` }))} />
+                  <JXSelect label="Vehicle" className="jx-select-field jx-field-select" searchable placeholder="Select a vehicle" value={allocVehicleId} onChange={setAllocVehicleId}
+                    options={vehicles.map((v) => ({ id: v.id, label: `${v.stockNumber} — ${v.year} ${v.make} ${v.model} · ${v.status}` }))} />
+                  <Field label="Quantity" hint={allocPart ? `${allocStock} available` : undefined}>
+                    <input className={inputCls} type="number" min="1" step="1" value={allocQty} onChange={(e) => setAllocQty(e.target.value)} placeholder="e.g. 12" />
+                  </Field>
+                  <JXButton variant="contained" lockWidth={false} onClick={submitAllocate}>Allocate (FIFO)</JXButton>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Example from the seed data: allocating 12 brake pads to CDT-103 cost $620 — 10 @ $50 + 2 @ $60.</p>
+                </div>
+              </JXCard>
             </div>
-          </JXCard>
-        </div>
       </div>
 
-      {showReceive && (
-        <Modal title="Receive batch" onClose={() => setShowReceive(false)}>
-          {recvError && <div className="mb-3"><Alert severity="error" title="Check the form" description={recvError} /></div>}
-          {recvDone && <div className="mb-3"><Alert severity="success" title="Batch received" description={recvDone} /></div>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Field label="Part">
-                <JXSelect searchable placeholder="Select a part" value={recvPartId} onChange={setRecvPartId}
+        {showReceive && (
+          <Modal title="Receive batch" onClose={() => setShowReceive(false)}>
+            {recvError && <div className="mb-3"><Alert severity="error" title="Check the form" description={recvError} /></div>}
+            {recvDone && <div className="mb-3"><Alert severity="success" title="Batch received" description={recvDone} /></div>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <JXSelect label="Part" className="jx-select-field jx-field-select" searchable placeholder="Select a part" value={recvPartId} onChange={setRecvPartId}
                   options={parts.map((p) => ({ id: p.id, label: `${p.name} (${p.sku})` }))} />
-              </Field>
+              </div>
+              <Field label="Quantity received *"><input className={inputCls} type="number" min="1" step="1" value={recvQty} onChange={(e) => setRecvQty(e.target.value)} placeholder="e.g. 10" /></Field>
+              <Field label="Unit price *"><input className={inputCls} type="number" min="0" step="0.01" value={recvPrice} onChange={(e) => setRecvPrice(e.target.value)} placeholder="e.g. 60.00" /></Field>
+              <div className="sm:col-span-2"><Field label="Invoice reference *"><JXTextField className="jx-text-field" label="" value={recvInvoice} onChange={setRecvInvoice} placeholder="e.g. INV-PW-141" /></Field></div>
             </div>
-            <Field label="Quantity received *"><input className={inputCls} type="number" min="1" step="1" value={recvQty} onChange={(e) => setRecvQty(e.target.value)} placeholder="e.g. 10" /></Field>
-            <Field label="Unit price *"><input className={inputCls} type="number" min="0" step="0.01" value={recvPrice} onChange={(e) => setRecvPrice(e.target.value)} placeholder="e.g. 60.00" /></Field>
-            <div className="sm:col-span-2"><Field label="Invoice reference *"><JXTextField value={recvInvoice} onChange={setRecvInvoice} placeholder="e.g. INV-PW-141" /></Field></div>
-          </div>
-          <p className="mt-3 text-xs text-slate-500">The new batch is dated today and becomes the newest FIFO batch — older batches are still consumed first.</p>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" onClick={() => setShowReceive(false)}>Close</JXButton>
-            <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>
-          </div>
-        </Modal>
-      )}
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">The new batch is dated today and becomes the newest FIFO batch — older batches are still consumed first.</p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <JXButton variant="outlined" onClick={() => setShowReceive(false)}>Close</JXButton>
+              <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>
+            </div>
+          </Modal>
+        )}
 
-      {showNewPart && (
-        <Modal title="New part in catalog" onClose={() => setShowNewPart(false)}>
-          {newPartError && <div className="mb-3"><Alert severity="error" title="Check the form" description={newPartError} /></div>}
-          {newPartDone && <div className="mb-3"><Alert severity="success" title="Part added" description={newPartDone} /></div>}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="SKU *"><JXTextField value={newSku} onChange={setNewSku} placeholder="e.g. BP-1001" /></Field>
-            <Field label="Part name *"><JXTextField value={newName} onChange={setNewName} placeholder="e.g. Brake Pads (set)" /></Field>
-            <Field label="Manufacturer"><JXTextField value={newManufacturer} onChange={setNewManufacturer} placeholder="e.g. Brembo" /></Field>
-            <Field label="Supplier"><JXTextField value={newSupplier} onChange={setNewSupplier} placeholder="e.g. PartsWorld" /></Field>
-            <Field label="Minimum stock"><input className={inputCls} type="number" min="0" step="1" value={newMinStock} onChange={(e) => setNewMinStock(e.target.value)} /></Field>
-          </div>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <JXButton variant="outlined" onClick={() => setShowNewPart(false)}>Close</JXButton>
-            <JXButton variant="contained" onClick={submitNewPart}>Add part</JXButton>
-          </div>
-        </Modal>
-      )}
-    </>
-  )
+        {showNewPart && (
+          <Modal title="New part in catalog" onClose={() => setShowNewPart(false)}>
+            {newPartError && <div className="mb-3"><Alert severity="error" title="Check the form" description={newPartError} /></div>}
+            {newPartDone && <div className="mb-3"><Alert severity="success" title="Part added" description={newPartDone} /></div>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="SKU *"><JXTextField className="jx-text-field" label="" value={newSku} onChange={setNewSku} placeholder="e.g. BP-1001" /></Field>
+              <Field label="Part name *"><JXTextField className="jx-text-field" label="" value={newName} onChange={setNewName} placeholder="e.g. Brake Pads (set)" /></Field>
+              <Field label="Manufacturer"><JXTextField className="jx-text-field" label="" value={newManufacturer} onChange={setNewManufacturer} placeholder="e.g. Brembo" /></Field>
+              <Field label="Supplier"><JXTextField className="jx-text-field" label="" value={newSupplier} onChange={setNewSupplier} placeholder="e.g. PartsWorld" /></Field>
+              <Field label="Minimum stock"><input className={inputCls} type="number" min="0" step="1" value={newMinStock} onChange={(e) => setNewMinStock(e.target.value)} /></Field>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <JXButton variant="outlined" onClick={() => setShowNewPart(false)}>Close</JXButton>
+              <JXButton variant="contained" onClick={submitNewPart}>Add part</JXButton>
+            </div>
+          </Modal>
+        )}
+      </>
+      )
 }

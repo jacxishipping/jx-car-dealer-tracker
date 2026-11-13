@@ -22,7 +22,7 @@ import { insertAudit } from '../lib/audit';
 import * as m from '../lib/mappers';
 import { insertVehicleTx, assertVinAvailable, type VehicleInput } from '../lib/vehicles';
 import { expenseCategoryId, recordExpenseTx, type ExpenseInput } from '../lib/services';
-import { EXPENSE_CATEGORIES, LEAD_STAGES, TRANSPORT_STATUSES, VEHICLE_STATUSES } from '../lib/types';
+import { EXPENSE_CATEGORIES, LEAD_STAGES, VEHICLE_STATUSES } from '../lib/types';
 import type { Role } from '../lib/types';
 
 export const crudRouter = Router();

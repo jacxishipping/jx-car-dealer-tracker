@@ -6,7 +6,7 @@
 // needs the production backend (PostgreSQL, real auth, server-side RBAC) —
 // see docs/ARCHITECTURE.md and docs/schema.sql.
 import { JXAlert, JXButton, JXCard, JXChip } from '@jacxishippingorg/jx-ui-react'
-import { PageHeader } from '../components/ui'
+import { PageHeader, TableScrollHint } from '../components/ui'
 
 interface Tool {
   name: string
@@ -46,124 +46,127 @@ const WRITE_TOOLS: Tool[] = [
 
 function ToolTable({ tools }: { tools: Tool[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-            <th className="py-2 pr-3">Tool</th>
-            <th className="py-2 pr-3">What it does</th>
-            <th className="py-2 pr-3">Input schema (JSON)</th>
-            <th className="py-2 pr-3">Auth / confirmation</th>
-            <th className="py-2">Implemented in this build by</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tools.map((t) => (
-            <tr key={t.name} className="border-b border-slate-100 align-top dark:border-slate-800">
-              <td className="py-3 pr-3 font-mono text-xs font-semibold text-indigo-700 dark:text-indigo-300">{t.name}</td>
-              <td className="py-3 pr-3 text-slate-600 dark:text-slate-300">{t.description}<p className="mt-1 text-xs text-slate-400">Returns: {t.output}</p></td>
-              <td className="py-3 pr-3"><pre className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-2 font-mono text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">{JSON.stringify(t.inputSchema, null, 1) === '{}' ? '(no inputs)' : JSON.stringify(t.inputSchema, null, 1)}</pre></td>
-              <td className="py-3 pr-3 text-slate-600 dark:text-slate-300">{t.auth}<p className="mt-1 text-xs text-slate-400">{t.confirm}</p></td>
-              <td className="py-3 font-mono text-[11px] text-slate-500">{t.implements}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+              <>
+                <TableScrollHint />
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <th className="py-2 pr-3">Tool</th>
+                        <th className="py-2 pr-3">What it does</th>
+                        <th className="py-2 pr-3">Input schema (JSON)</th>
+                        <th className="py-2 pr-3">Auth / confirmation</th>
+                        <th className="py-2">Implemented in this build by</th>
+                      </tr>
+              </thead>
+              <tbody>
+                {tools.map((t) => (
+                  <tr key={t.name} className="border-b border-slate-100 align-top dark:border-slate-700">
+                    <td className="py-3 pr-3 font-mono text-xs font-semibold text-indigo-700 dark:text-indigo-300">{t.name}</td>
+                    <td className="py-3 pr-3 text-slate-600 dark:text-slate-300">{t.description}<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Returns: {t.output}</p></td>
+                    <td className="py-3 pr-3"><pre className="whitespace-pre-wrap break-words rounded-[var(--radius-control)] bg-slate-50 p-2 font-mono text-[11px] text-slate-600 dark:bg-slate-900 dark:text-slate-300">{JSON.stringify(t.inputSchema, null, 1) === '{}' ? '(no inputs)' : JSON.stringify(t.inputSchema, null, 1)}</pre></td>
+                    <td className="py-3 pr-3 text-slate-600 dark:text-slate-300">{t.auth}<p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.confirm}</p></td>
+                    <td className="py-3 font-mono text-[11px] text-slate-500 dark:text-slate-400">{t.implements}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+      </div>
+      </>
+      )
 }
 
-export default function Mcp() {
+      export default function Mcp() {
   return (
     <>
-      <PageHeader
-        title="MCP Integration"
-        subtitle="Model Context Protocol — tool documentation and in-app registry."
-      />
-      <JXAlert
-        severity="warning"
-        title="Not a live MCP server"
-        description="This page is documentation plus an in-app tool registry. It does not expose an MCP endpoint, accept MCP clients, or call any external service. A live MCP server needs the production backend: PostgreSQL, real authentication, server-side RBAC, and the tools below implemented as server endpoints — see docs/ARCHITECTURE.md and docs/schema.sql. Everything listed here already exists as a store function in this build; the registry table maps each tool to that function."
-      />
+        <PageHeader
+          title="MCP Integration"
+          subtitle="Model Context Protocol — tool documentation and in-app registry."
+        />
+        <JXAlert
+          severity="warning"
+          title="Not a live MCP server"
+          description="This page is documentation plus an in-app tool registry. It does not expose an MCP endpoint, accept MCP clients, or call any external service. A live MCP server needs the production backend: PostgreSQL, real authentication, server-side RBAC, and the tools below implemented as server endpoints — see docs/ARCHITECTURE.md and docs/schema.sql. Everything listed here already exists as a store function in this build; the registry table maps each tool to that function."
+        />
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <JXCard className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="p-5">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Connection (production)</h2>
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
-              <li>Deploy the production backend with the PostgreSQL schema in <code className="font-mono text-xs">docs/schema.sql</code>.</li>
-              <li>Create an API credential for the MCP client (per-organization, scoped to the tools it needs). Credentials are issued in Settings → API access, never pasted into chat.</li>
-              <li>Point the MCP client at the server endpoint (for example <code className="font-mono text-xs">https://api.example.com/mcp</code>) with the credential in the <code className="font-mono text-xs">Authorization</code> header.</li>
-              <li>The client lists tools, then calls them by name with the JSON input shown below. Every call is checked against the caller&apos;s role before it runs.</li>
-            </ol>
-            <p className="mt-3 text-xs text-slate-400">No endpoint, host, or credential exists in this build — the steps above describe the production setup only.</p>
-          </div>
-        </JXCard>
-        <JXCard className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="p-5">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Auth &amp; permissions</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-              <li><strong>Transport:</strong> HTTPS only; bearer credential per client, scoped per organization.</li>
-              <li><strong>Roles:</strong> Owner, Admin, Manager, Sales, Accountant, Technician, Viewer — the same roles as the app (see Team &amp; Permissions). Viewer can only call READ tools.</li>
-              <li><strong>Money rule:</strong> every WRITE tool that moves money (record_expense when Paid, create_purchase, create_sale finalisation, record_payment) requires an explicit confirmation step and writes an audit entry.</li>
-              <li><strong>Invariants enforced server-side:</strong> unique VIN per organization, no overpayment of a receivable, FIFO stock cannot go negative, a vehicle can only be sold from Available or Reserved.</li>
-            </ul>
-          </div>
-        </JXCard>
-        <JXCard className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="p-5">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Audit &amp; safety</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-              <li>Every WRITE call writes an <code className="font-mono text-xs">audit_logs</code> row (actor, action, entity, summary) — the same audit trail the app shows on the AI Assistant page.</li>
-              <li>Money movement always writes a journal entry alongside the transaction; a balance can never change without a ledger entry.</li>
-              <li>There is no delete tool in this surface. Deletions (if ever added) require Owner confirmation and are soft deletes.</li>
-              <li>Read tools never mutate state.</li>
-            </ul>
-            <div className="mt-4 flex gap-2">
-              <JXChip label={`${READ_TOOLS.length} READ tools`} tone="emerald" />
-              <JXChip label={`${WRITE_TOOLS.length} WRITE tools`} tone="amber" />
-            </div>
-          </div>
-        </JXCard>
-      </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+            <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <div className="p-5">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Connection (production)</h2>
+                <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+                  <li>Deploy the production backend with the PostgreSQL schema in <code className="font-mono text-xs">docs/schema.sql</code>.</li>
+                  <li>Create an API credential for the MCP client (per-organization, scoped to the tools it needs). Credentials are issued in Settings → API access, never pasted into chat.</li>
+                  <li>Point the MCP client at the server endpoint (for example <code className="font-mono text-xs">https://api.example.com/mcp</code>) with the credential in the <code className="font-mono text-xs">Authorization</code> header.</li>
+                  <li>The client lists tools, then calls them by name with the JSON input shown below. Every call is checked against the caller&apos;s role before it runs.</li>
+                </ol>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">No endpoint, host, or credential exists in this build — the steps above describe the production setup only.</p>
+              </div>
+            </JXCard>
+              <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <div className="p-5">
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-white">Auth &amp; permissions</h2>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><strong>Transport:</strong> HTTPS only; bearer credential per client, scoped per organization.</li>
+                    <li><strong>Roles:</strong> Owner, Admin, Manager, Sales, Accountant, Technician, Viewer — the same roles as the app (see Team &amp; Permissions). Viewer can only call READ tools.</li>
+                    <li><strong>Money rule:</strong> every WRITE tool that moves money (record_expense when Paid, create_purchase, create_sale finalisation, record_payment) requires an explicit confirmation step and writes an audit entry.</li>
+                    <li><strong>Invariants enforced server-side:</strong> unique VIN per organization, no overpayment of a receivable, FIFO stock cannot go negative, a vehicle can only be sold from Available or Reserved.</li>
+                  </ul>
+                </div>
+              </JXCard>
+                <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                  <div className="p-5">
+                    <h2 className="text-base font-semibold text-slate-900 dark:text-white">Audit &amp; safety</h2>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                      <li>Every WRITE call writes an <code className="font-mono text-xs">audit_logs</code> row (actor, action, entity, summary) — the same audit trail the app shows on the AI Assistant page.</li>
+                      <li>Money movement always writes a journal entry alongside the transaction; a balance can never change without a ledger entry.</li>
+                      <li>There is no delete tool in this surface. Deletions (if ever added) require Owner confirmation and are soft deletes.</li>
+                      <li>Read tools never mutate state.</li>
+                    </ul>
+                    <div className="mt-4 flex gap-2">
+                      <JXChip label={`${READ_TOOLS.length} READ tools`} tone="emerald" />
+                      <JXChip label={`${WRITE_TOOLS.length} WRITE tools`} tone="amber" />
+                    </div>
+                  </div>
+                </JXCard>
+              </div>
 
-      <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="p-5">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">READ tools ({READ_TOOLS.length})</h2>
-          <p className="mt-1 text-sm text-slate-500">Read-only. Any authenticated role may call them unless a narrower role list is shown.</p>
-          <div className="mt-3"><ToolTable tools={READ_TOOLS} /></div>
-        </div>
-      </JXCard>
+                <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                  <div className="p-5">
+                    <h2 className="text-base font-semibold text-slate-900 dark:text-white">READ tools ({READ_TOOLS.length})</h2>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Read-only. Any authenticated role may call them unless a narrower role list is shown.</p>
+                    <div className="mt-3"><ToolTable tools={READ_TOOLS} /></div>
+                  </div>
+                </JXCard>
 
-      <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="p-5">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">WRITE tools ({WRITE_TOOLS.length})</h2>
-          <p className="mt-1 text-sm text-slate-500">All WRITE tools require an explicit confirmation step in the calling client, enforce the role shown, and write an audit entry. Sensitive operations (sale finalisation, purchases, payments) are two-step in the app and must be two-step over MCP as well.</p>
-          <div className="mt-3"><ToolTable tools={WRITE_TOOLS} /></div>
-        </div>
-      </JXCard>
+                  <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                    <div className="p-5">
+                      <h2 className="text-base font-semibold text-slate-900 dark:text-white">WRITE tools ({WRITE_TOOLS.length})</h2>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">All WRITE tools require an explicit confirmation step in the calling client, enforce the role shown, and write an audit entry. Sensitive operations (sale finalisation, purchases, payments) are two-step in the app and must be two-step over MCP as well.</p>
+                      <div className="mt-3"><ToolTable tools={WRITE_TOOLS} /></div>
+                    </div>
+                  </JXCard>
 
-      <JXCard className="mt-5 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="p-5">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Example call (production shape)</h2>
-          <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 font-mono text-xs text-slate-100">{`{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "get_aged_inventory",
-    "arguments": { "days": 45 }
+                    <JXCard className="mt-5 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                      <div className="p-5">
+                        <h2 className="text-base font-semibold text-slate-900 dark:text-white">Example call (production shape)</h2>
+          <pre className="mt-3 overflow-x-auto rounded-[var(--radius-control)] bg-slate-900 p-4 font-mono text-xs text-slate-100">{`{
+                            "jsonrpc": "2.0",
+                          "id": 1,
+                          "method": "tools/call",
+                          "params": {
+                            "name": "get_aged_inventory",
+                          "arguments": {"days": 45 }
   }
 }
-// → { "vehicles": [ { "stockNumber": "CDT-110", "daysInStock": 87, … } ] }`}</pre>
-          <p className="mt-3 text-sm text-slate-500">
-            The example above is the wire shape a production server would use. It is not executable from this page — there is no server in this build.
-          </p>
-          <div className="mt-4">
-            <JXButton variant="outlined" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to top</JXButton>
-          </div>
-        </div>
-      </JXCard>
-    </>
-  )
+// → {"vehicles": [ {"stockNumber": "CDT-110", "daysInStock": 87, … } ] }`}</pre>
+                          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                            The example above is the wire shape a production server would use. It is not executable from this page — there is no server in this build.
+                          </p>
+                          <div className="mt-4">
+                            <JXButton variant="outlined" lockWidth={false} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to top</JXButton>
+                          </div>
+                      </div>
+                    </JXCard>
+                  </>
+                  )
 }

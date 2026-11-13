@@ -3,7 +3,7 @@
 // step and the MCP write tools. Each runs inside the caller's transaction;
 // any failure rolls the whole operation back.
 import type { PoolClient } from 'pg';
-import { ApiError, badRequest, conflict, notFound } from './errors';
+import { badRequest, conflict, notFound } from './errors';
 import { insertAudit } from './audit';
 import { fifoConsume, dealProfit } from './fifo';
 import { money, num } from './money';

@@ -50,80 +50,88 @@ export default function Settings() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <JXCard title="Organisation profile" kicker="Identity" description="Shown in the sidebar and used across the app."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           <div className="space-y-4">
-            <Field label="Organisation name">
-              <JXTextField label="" value={orgName} onChange={setOrgName} />
-            </Field>
-            <Field label="Currency" hint="Money is formatted in USD in this build; the currency label is stored with the organisation.">
-              <JXSelect options={[{ id: 'USD', label: 'USD — US Dollar' }, { id: 'AED', label: 'AED — UAE Dirham' }, { id: 'EUR', label: 'EUR — Euro' }, { id: 'GBP', label: 'GBP — British Pound' }]}
-                value={currency} onChange={setCurrency} />
-            </Field>
-            {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
-            {saved && <Alert severity="success" title={saved} />}
-            <div className="flex justify-end">
-              <JXButton variant="contained" onClick={saveProfile}>Save profile</JXButton>
-            </div>
+              <Field label="Organisation name" htmlFor="settings-org-name">
+                <JXTextField id="settings-org-name" className="jx-text-field" label="" value={orgName} onChange={setOrgName} />
+              </Field>
+              <div>
+                <JXSelect
+                  label="Currency"
+                  className="jx-select-field jx-field-select"
+                  options={[{ id: 'USD', label: 'USD — US Dollar' }, { id: 'AED', label: 'AED — UAE Dirham' }, { id: 'EUR', label: 'EUR — Euro' }, { id: 'GBP', label: 'GBP — British Pound' }]}
+                  value={currency}
+                  onChange={setCurrency}
+                />
+                <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                  Money is formatted in USD in this build; the currency label is stored with the organisation.
+                </span>
+              </div>
+              {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
+              {saved && <Alert severity="success" title={saved} />}
+              <div className="flex justify-end">
+                <JXButton variant="contained" lockWidth={false} onClick={saveProfile}>Save profile</JXButton>
+              </div>
           </div>
         </JXCard>
 
         <JXCard title="Overhead allocation & hold target" kicker="Costing policy" description="How every vehicle all-in cost is built."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           <div className="space-y-4">
-            <Field label="Overhead per vehicle (USD)" hint={`Allocated to every vehicle in vehicleAllInCost. Current: ${fmtMoney(state.settings.overheadPerVehicle)} per vehicle.`}>
-              <JXTextField label="" value={overhead} onChange={setOverhead} placeholder="150" />
-            </Field>
-            <Field label="Target hold days" hint="Vehicles held longer than this are flagged over target in the inventory aging report.">
-              <JXTextField label="" value={targetHold} onChange={setTargetHold} placeholder="45" />
-            </Field>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              All-in cost = purchase price + auction fees + transport + direct expenses + FIFO parts cost + overhead per vehicle.
-            </p>
-            {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
-            {saved && <Alert severity="success" title={saved} />}
-            <div className="flex justify-end">
-              <JXButton variant="contained" onClick={saveProfile}>Save costing policy</JXButton>
-            </div>
+              <Field label="Overhead per vehicle (USD)" htmlFor="settings-overhead" hint={`Allocated to every vehicle in vehicleAllInCost. Current: ${fmtMoney(state.settings.overheadPerVehicle)} per vehicle.`}>
+                <JXTextField id="settings-overhead" className="jx-text-field" label="" value={overhead} onChange={setOverhead} placeholder="150" />
+              </Field>
+                <Field label="Target hold days" htmlFor="settings-target-hold" hint="Vehicles held longer than this are flagged over target in the inventory aging report.">
+                  <JXTextField id="settings-target-hold" className="jx-text-field" label="" value={targetHold} onChange={setTargetHold} placeholder="45" />
+                </Field>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  All-in cost = purchase price + auction fees + transport + direct expenses + FIFO parts cost + overhead per vehicle.
+                </p>
+                {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
+                {saved && <Alert severity="success" title={saved} />}
+                <div className="flex justify-end">
+                  <JXButton variant="contained" lockWidth={false} onClick={saveProfile}>Save costing policy</JXButton>
+                </div>
+              </div>
+            </JXCard>
+
+            <JXCard title="Appearance" kicker="Theme" description="Light or dark across the whole app."
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <JXSwitch checked={dark} label={dark ? 'Dark theme' : 'Light theme'}
+                helperText="Toggles the 'dark' class on the document element and saves the choice in settings, the same way the header toggle does."
+                onChange={toggleTheme} />
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Current theme: <span className="font-semibold text-slate-900 dark:text-white">{state.settings.theme}</span></p>
+            </JXCard>
+
+            <JXCard title="Demo data" kicker="Danger zone" description="Start over from the original seed data."
+          className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Resetting restores the seed dealership ({state.vehicles.length} vehicles, {state.sales.length} sales and the rest of the demo data as seeded) and discards every change made since.
+              </p>
+              {resetDone && <div className="mt-3"><Alert severity="success" title={resetDone} /></div>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!confirmReset ? (
+              <JXButton variant="outlined" color="error" lockWidth={false} onClick={() => setConfirmReset(true)}>Reset demo data…</JXButton>
+                ) : (
+                  <>
+                    <JXButton variant="contained" color="error" lockWidth={false} onClick={doReset}>Yes, reset everything</JXButton>
+                    <JXButton variant="outlined" lockWidth={false} onClick={() => setConfirmReset(false)}>Cancel</JXButton>
+                  </>
+                )}
+              </div>
+              {confirmReset && <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-400">This cannot be undone. Confirm to wipe all local changes and restore the seed.</p>}
+            </JXCard>
           </div>
-        </JXCard>
 
-        <JXCard title="Appearance" kicker="Theme" description="Light or dark across the whole app."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <JXSwitch checked={dark} label={dark ? 'Dark theme' : 'Light theme'}
-            helperText="Toggles the 'dark' class on the document element and saves the choice in settings, the same way the header toggle does."
-            onChange={toggleTheme} />
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Current theme: <span className="font-semibold text-slate-900 dark:text-white">{state.settings.theme}</span></p>
-        </JXCard>
-
-        <JXCard title="Demo data" kicker="Danger zone" description="Start over from the original seed data."
-          className="!rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Resetting restores the seed dealership ({state.vehicles.length} vehicles, {state.sales.length} sales and the rest of the demo data as seeded) and discards every change made since.
-          </p>
-          {resetDone && <div className="mt-3"><Alert severity="success" title={resetDone} /></div>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {!confirmReset ? (
-              <JXButton variant="outlined" color="error" onClick={() => setConfirmReset(true)}>Reset demo data…</JXButton>
-            ) : (
-              <>
-                <JXButton variant="contained" color="error" onClick={doReset}>Yes, reset everything</JXButton>
-                <JXButton variant="outlined" onClick={() => setConfirmReset(false)}>Cancel</JXButton>
-              </>
-            )}
-          </div>
-          {confirmReset && <p className="mt-2 text-sm font-semibold text-rose-600">This cannot be undone. Confirm to wipe all local changes and restore the seed.</p>}
-        </JXCard>
-      </div>
-
-      <JXCard title="Data & honesty" kicker="What this build is — and is not" description="Read before relying on anything here for real business."
-        className="mt-6 !rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
-          <li><strong className="text-slate-900 dark:text-white">localStorage persistence:</strong> all data lives in your browser's localStorage (key <code className="font-mono text-xs">jx-dealer-tracker-v1</code>). It survives reloads on this browser only — clear site data and it is gone. There is no server copy and no sync between devices.</li>
-          <li><strong className="text-slate-900 dark:text-white">Demo seed data:</strong> the vehicles, customers, sales, accounts and documents are invented demo records (labelled DEMO in the sidebar), not a real dealership's books. The reset button above restores them.</li>
-          <li><strong className="text-slate-900 dark:text-white">Not in this build:</strong> no Postgres or any other database; no real authentication (the role switcher in the header just changes a label); no server-side role enforcement — role gating here is UI-level only; no object storage, so documents are metadata records with no file bytes; no live MCP server connection; and no voice/OCR features — the AI assistant page is a separate placeholder.</li>
-          <li><strong className="text-slate-900 dark:text-white">Money movement:</strong> every balance change goes through the store (recordPayment, transfer, recordExpense, finalizeSale) and writes a journal entry. Balances are always computed from opening balance + signed transactions, never stored.</li>
-        </ul>
-      </JXCard>
-    </>
-  )
+          <JXCard title="Data & honesty" kicker="What this build is — and is not" description="Read before relying on anything here for real business."
+        className="mt-6 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+            <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+              <li><strong className="text-slate-900 dark:text-white">localStorage persistence:</strong> all data lives in your browser's localStorage (key <code className="font-mono text-xs">jx-dealer-tracker-v1</code>). It survives reloads on this browser only — clear site data and it is gone. There is no server copy and no sync between devices.</li>
+              <li><strong className="text-slate-900 dark:text-white">Demo seed data:</strong> the vehicles, customers, sales, accounts and documents are invented demo records (labelled DEMO in the sidebar), not a real dealership's books. The reset button above restores them.</li>
+              <li><strong className="text-slate-900 dark:text-white">Not in this build:</strong> no Postgres or any other database; no real authentication (the role switcher in the header just changes a label); no server-side role enforcement — role gating here is UI-level only; no object storage, so documents are metadata records with no file bytes; no live MCP server connection; and no voice/OCR features — the AI assistant page is a separate placeholder.</li>
+              <li><strong className="text-slate-900 dark:text-white">Money movement:</strong> every balance change goes through the store (recordPayment, transfer, recordExpense, finalizeSale) and writes a journal entry. Balances are always computed from opening balance + signed transactions, never stored.</li>
+            </ul>
+          </JXCard>
+        </>
+        )
 }
