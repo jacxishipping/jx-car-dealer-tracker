@@ -69,10 +69,8 @@ export default function Settings() {
                   Money is formatted in USD in this build; the currency label is stored with the organisation.
                 </span>
               </div>
-              {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
-              {saved && <Alert severity="success" title={saved} />}
               <div className="flex justify-end">
-                <JXButton variant="contained" lockWidth={false} onClick={saveProfile}>Save profile</JXButton>
+                <JXButton variant="contained" lockWidth={false} onClick={saveProfile} className="w-full sm:w-auto">Save profile</JXButton>
               </div>
           </div>
         </JXCard>
@@ -89,10 +87,8 @@ export default function Settings() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   All-in cost = purchase price + auction fees + transport + direct expenses + FIFO parts cost + overhead per vehicle.
                 </p>
-                {saveError && <Alert severity="error" title="Cannot save settings" description={saveError} />}
-                {saved && <Alert severity="success" title={saved} />}
                 <div className="flex justify-end">
-                  <JXButton variant="contained" lockWidth={false} onClick={saveProfile}>Save costing policy</JXButton>
+                  <JXButton variant="contained" lockWidth={false} onClick={saveProfile} className="w-full sm:w-auto">Save costing policy</JXButton>
                 </div>
               </div>
             </JXCard>
@@ -124,6 +120,10 @@ export default function Settings() {
               {confirmReset && <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-400">This cannot be undone. Confirm to wipe all local changes and restore the seed.</p>}
             </JXCard>
           </div>
+
+          {(saveError || saved) && <div className="mt-4" role="status" aria-live="polite">
+            {saveError ? <Alert severity="error" title="Cannot save settings" description={saveError} /> : <Alert severity="success" title={saved} />}
+          </div>}
 
           <JXCard title="Data & availability" kicker={apiMode ? 'Connected workspace' : 'Demo workspace'} description="Understand where records are stored and which integrations are active."
         className="mt-6 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">

@@ -4,36 +4,22 @@ import { Plus, Trash2 } from 'lucide-react'
 import {JXButtonGroup} from '../components/JXUI'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
-import type { Vehicle, VehicleStatus } from '../store/types'
 import { VEHICLE_STATUSES } from '../store/types'
 import { daysInStock } from '../store/engine'
-import { Alert, EmptyState, ExportButton, Field, Modal, Money, PageHeader, StatusChip, inputCls, usePagination } from '../components/ui'
+import { EmptyState, ExportButton, Money, PageHeader, StatusChip, usePagination } from '../components/ui'
 
 import {JXButton, JXSelect} from '../components/JXUI'
 type SortKey = 'price' | 'date' | 'mileage'
 type InventoryView = { id: string; name: string; query: string; status: string; sortKey: SortKey; sortDir: 'asc' | 'desc' }
 const SAVED_VIEWS_KEY = 'jx-dealer-inventory-views-v1'
 
-const emptyForm = {
-  stockNumber: '', vin: '', year: String(new Date().getFullYear()), make: '', model: '', trim: '',
-  extColor: '', intColor: '', mileage: '0', transmission: 'Automatic', engine: '', fuel: 'Petrol',
-  drivetrain: 'FWD', bodyType: 'Sedan', condition: 'Good' as Vehicle['condition'],
-  titleStatus: 'Clean' as Vehicle['titleStatus'], status: 'Purchased' as VehicleStatus,
-  purchaseDate: new Date().toISOString().slice(0, 10), purchaseSource: 'Auction' as Vehicle['purchaseSource'],
-  purchasePrice: '0', auctionFees: '0', transportCost: '0', askingPrice: '0', minPrice: '0',
-  photos: '', notes: '',
-}
-
 export default function Inventory() {
-  const { state, addVehicle } = useStore()
+  const { state } = useStore()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState(emptyForm)
-  const [error, setError] = useState('')
   const [viewName, setViewName] = useState('')
   const [activeView, setActiveView] = useState('preset:all')
   const [savedViews, setSavedViews] = useState<InventoryView[]>(() => {
@@ -103,52 +89,6 @@ export default function Inventory() {
     ...savedViews.map((view) => ({ id: view.id, label: `Saved: ${view.name}` })),
   ]
 
-  const set = (key: keyof typeof emptyForm, val: string) => setForm((f) => ({ ...f, [key]: val }))
-
-  const submit = () => {
-    setError('')
-    if (!form.vin.trim() || !form.stockNumber.trim() || !form.make.trim() || !form.model.trim()) {
-      setError('Stock number, VIN, make and model are required.')
-      return
-    }
-    const vehicle: Omit<Vehicle, 'id' | 'createdAt'> = {
-      stockNumber: form.stockNumber.trim(),
-      vin: form.vin.trim().toUpperCase(),
-      year: Number(form.year) || new Date().getFullYear(),
-      make: form.make.trim(),
-      model: form.model.trim(),
-      trim: form.trim.trim(),
-      extColor: form.extColor.trim(),
-      intColor: form.intColor.trim(),
-      mileage: Number(form.mileage) || 0,
-      transmission: form.transmission.trim(),
-      engine: form.engine.trim(),
-      fuel: form.fuel.trim(),
-      drivetrain: form.drivetrain.trim(),
-      bodyType: form.bodyType.trim(),
-      condition: form.condition,
-      titleStatus: form.titleStatus,
-      status: form.status,
-      purchaseDate: form.purchaseDate,
-      purchaseSource: form.purchaseSource,
-      purchasePrice: Number(form.purchasePrice) || 0,
-      auctionFees: Number(form.auctionFees) || 0,
-      transportCost: Number(form.transportCost) || 0,
-      askingPrice: Number(form.askingPrice) || 0,
-      minPrice: Number(form.minPrice) || 0,
-      photos: form.photos.split(',').map((p) => p.trim()).filter(Boolean),
-      notes: form.notes.trim(),
-    }
-    const res = addVehicle(vehicle)
-    if (!res.ok) {
-      setError(res.error ?? 'Could not add vehicle.')
-      return
-    }
-    setForm(emptyForm)
-    setShowAdd(false)
-    if (res.id) navigate(`/inventory/${res.id}`)
-  }
-
   return (
     <>
       <PageHeader
@@ -164,7 +104,7 @@ export default function Inventory() {
                 purchasePrice: v.purchasePrice, askingPrice: v.askingPrice,
               }))}
             />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(''); setShowAdd(true) }}>
+            <JXButton variant="contained" size="sm" onClick={() => navigate('/inventory/new')}>
               <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Add vehicle</span>
             </JXButton>
           </>
@@ -283,63 +223,6 @@ export default function Inventory() {
           </div>
           </>
       )}
-
-          {showAdd && (
-            <Modal title="Add vehicle" onClose={() => setShowAdd(false)} wide>
-              {error && <div className="mb-4"><Alert severity="error" title="Could not add vehicle" description={error} /></div>}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Stock number *"><input className={inputCls} value={form.stockNumber} onChange={(e) => set('stockNumber', e.target.value)} placeholder="CDT-115" /></Field>
-                <Field label="VIN *"><input className={inputCls} value={form.vin} onChange={(e) => set('vin', e.target.value)} placeholder="17-character VIN" /></Field>
-                <Field label="Year"><input className={inputCls} type="number" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
-                <Field label="Make *"><input className={inputCls} value={form.make} onChange={(e) => set('make', e.target.value)} /></Field>
-                <Field label="Model *"><input className={inputCls} value={form.model} onChange={(e) => set('model', e.target.value)} /></Field>
-                <Field label="Trim"><input className={inputCls} value={form.trim} onChange={(e) => set('trim', e.target.value)} /></Field>
-                <Field label="Exterior color"><input className={inputCls} value={form.extColor} onChange={(e) => set('extColor', e.target.value)} /></Field>
-                <Field label="Interior color"><input className={inputCls} value={form.intColor} onChange={(e) => set('intColor', e.target.value)} /></Field>
-                <Field label="Mileage"><input className={inputCls} type="number" min={0} value={form.mileage} onChange={(e) => set('mileage', e.target.value)} /></Field>
-                <Field label="Transmission"><input className={inputCls} value={form.transmission} onChange={(e) => set('transmission', e.target.value)} /></Field>
-                <Field label="Engine"><input className={inputCls} value={form.engine} onChange={(e) => set('engine', e.target.value)} placeholder="e.g. 2.5L 4-cyl" /></Field>
-                <Field label="Fuel"><input className={inputCls} value={form.fuel} onChange={(e) => set('fuel', e.target.value)} /></Field>
-                <Field label="Drivetrain"><input className={inputCls} value={form.drivetrain} onChange={(e) => set('drivetrain', e.target.value)} /></Field>
-                <Field label="Body type"><input className={inputCls} value={form.bodyType} onChange={(e) => set('bodyType', e.target.value)} /></Field>
-                <Field label="Condition">
-                  <select className={inputCls} value={form.condition} onChange={(e) => set('condition', e.target.value)}>
-                    {(['Excellent', 'Good', 'Fair', 'Poor'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Title status">
-                  <select className={inputCls} value={form.titleStatus} onChange={(e) => set('titleStatus', e.target.value)}>
-                    {(['Clean', 'Salvage', 'Rebuilt', 'Lien', 'Missing'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Status">
-                  <select className={inputCls} value={form.status} onChange={(e) => set('status', e.target.value)}>
-                    {VEHICLE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </Field>
-                <Field label="Purchase source">
-                  <select className={inputCls} value={form.purchaseSource} onChange={(e) => set('purchaseSource', e.target.value)}>
-                    {(['Auction', 'Wholesale', 'Private seller', 'Trade-in', 'Other dealer'] as const).map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Purchase date"><input className={inputCls} type="date" value={form.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></Field>
-                <Field label="Purchase price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} /></Field>
-                <Field label="Auction fees ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.auctionFees} onChange={(e) => set('auctionFees', e.target.value)} /></Field>
-                <Field label="Transport cost ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.transportCost} onChange={(e) => set('transportCost', e.target.value)} /></Field>
-                <Field label="Asking price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.askingPrice} onChange={(e) => set('askingPrice', e.target.value)} /></Field>
-                <Field label="Minimum price ($)"><input className={inputCls} type="number" min={0} step="0.01" value={form.minPrice} onChange={(e) => set('minPrice', e.target.value)} /></Field>
-                <Field label="Photos" hint="Comma-separated file names, e.g. front.jpg, side.jpg">
-                  <input className={inputCls} value={form.photos} onChange={(e) => set('photos', e.target.value)} />
-                </Field>
-                <Field label="Notes"><textarea className={inputCls} rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-              </div>
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Duplicate VINs are rejected — the store checks the VIN against every existing vehicle.</p>
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <JXButton variant="text" size="sm" onClick={() => setShowAdd(false)}>Cancel</JXButton>
-                <JXButton variant="contained" size="sm" onClick={submit}>Add vehicle</JXButton>
-              </div>
-            </Modal>
-          )}
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Select a stock number to open the vehicle detail page.</p>
         </>
       )

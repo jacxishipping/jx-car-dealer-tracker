@@ -8,6 +8,7 @@ import { StoreProvider } from './store/store'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
+import AddVehicle from './pages/AddVehicle'
 import VehicleDetail from './pages/VehicleDetail'
 import Purchases from './pages/Purchases'
 import Transportation from './pages/Transportation'
@@ -51,6 +52,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="inventory" element={<Inventory />} />
+              <Route path="inventory/new" element={<AddVehicle />} />
               <Route path="inventory/:id" element={<VehicleDetail />} />
               <Route path="purchases" element={<Purchases />} />
               <Route path="transportation" element={<Transportation />} />

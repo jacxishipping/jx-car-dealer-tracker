@@ -282,29 +282,30 @@ export default function AiAssistant() {
         <div className="lg:col-span-2">
             <JXCard className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
               <div className="p-5">
-                  <div className="flex flex-wrap gap-2">
+                  <form className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={(e) => { e.preventDefault(); if (input.trim()) runParse(input) }}>
                     <JXTextField
                       id="ai-command-input"
-                      className="jx-text-field min-w-0 flex-1"
+                      className="jx-text-field min-w-0 w-full"
                       label=""
                       value={input}
                       onChange={setInput}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && input.trim()) runParse(input) }}
                       placeholder='Try: "Add a 2022 Honda Accord for $16,500"'
                       aria-label="Command"
                     />
-                      <JXButton variant="contained" lockWidth={false} onClick={() => input.trim() && runParse(input)}>
+                      <JXButton type="submit" variant="contained" lockWidth={false} disabled={!input.trim()} className="w-full sm:w-auto">
                         <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4" /> Run</span>
                       </JXButton>
                       <JXButton
+                        type="button"
                         variant="outlined"
                         lockWidth={false}
                         title="Voice input"
                         onClick={() => setVoiceNote('Voice input is not connected in this build — type your command.')}
+                        className="w-full sm:w-auto"
                       >
                         <span className="inline-flex items-center gap-1.5"><Mic className="h-4 w-4" /> Voice</span>
                       </JXButton>
-                  </div>
+                  </form>
                   {voiceNote && <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">{voiceNote}</p>}
 
                   <div className="mt-4">
@@ -321,9 +322,9 @@ export default function AiAssistant() {
 
                       <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
                         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Receipt / invoice photo (optional)</span>
-                        <label htmlFor="ai-photo-upload" className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-700 hover:border-indigo-600 dark:border-slate-600 dark:text-slate-200">
+                        <label htmlFor="ai-photo-upload" className="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-700 hover:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-600 dark:text-slate-200">
                           <ImagePlus className="h-4 w-4" />
-                          <span>{photoName ? photoName : 'Choose a photo…'}</span>
+                          <span className="min-w-0 truncate">{photoName ? photoName : 'Choose a photo…'}</span>
                           <input
                             id="ai-photo-upload"
                             type="file"

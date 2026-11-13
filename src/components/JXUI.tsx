@@ -12,6 +12,9 @@ import {
   JXSwitch as LibrarySwitch,
   JXTextField as LibraryTextField,
   JXTimeline as LibraryTimeline,
+  JXStepper as LibraryStepper,
+  JXNumberField as LibraryNumberField,
+  JXTextareaAutosize as LibraryTextarea,
 } from '@jacxishippingorg/jx-ui-react'
 
 type Classed<T> = T & { className?: string }
@@ -75,6 +78,21 @@ export function JXTimeline(props: ComponentProps<typeof LibraryTimeline>) {
 export function JXProgress(props: ComponentProps<typeof LibraryProgress>) {
   const { className, ...rest } = props
   return <LibraryProgress {...rest} className={mergeClass('jx-app-progress', className)} />
+}
+
+export function JXStepper(props: ComponentProps<typeof LibraryStepper>) {
+  const { className, ...rest } = props
+  return <LibraryStepper {...rest} className={mergeClass('jx-app-stepper', className)} />
+}
+
+export function JXNumberField(props: ComponentProps<typeof LibraryNumberField>) {
+  const { className, ...rest } = props
+  return <LibraryNumberField {...rest} className={mergeClass('jx-app-number-field', className)} />
+}
+
+export function JXTextareaAutosize(props: ComponentProps<typeof LibraryTextarea>) {
+  const { className, ...rest } = props
+  return <LibraryTextarea {...rest} className={mergeClass('jx-app-textarea', className)} />
 }
 
 export type JXButtonProps = Classed<ComponentProps<typeof LibraryButton>>

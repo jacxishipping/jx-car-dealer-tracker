@@ -189,7 +189,10 @@ input[aria-label='Filter select options']:focus {
 #root .jx-app-avatar-group,
 #root .jx-app-timeline,
 #root .jx-app-progress,
-#root .jx-app-button-group {
+#root .jx-app-button-group,
+#root .jx-app-stepper,
+#root .jx-app-number-field,
+#root .jx-app-textarea {
   font-family: var(--font-sans);
   letter-spacing: normal;
 }
@@ -330,6 +333,8 @@ input[aria-label='Filter select options']:focus {
 #root .jx-app-progress { font-family: var(--font-sans); }
 #root .jx-app-button-group { gap: 0.25rem; }
 #root .jx-app-button-group button { min-height: 2.5rem; border-radius: var(--radius-control); font-family: var(--font-sans); box-shadow: none; }
+#root .jx-app-stepper--progress-only > div:last-child { display: none; }
+#root .jx-vehicle-wizard-card { max-width: 100%; }
 
 @media (max-width: 639px) {
   #root .jx-app-button { min-height: 2.75rem; }
