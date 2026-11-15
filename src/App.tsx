@@ -2,7 +2,7 @@
 // HashRouter is used deliberately: the built app is served as static files,
 // so deep links must work without server-side SPA fallback.
 import { useState } from 'react'
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { JXThemeProvider } from '@jacxishippingorg/jx-ui-react'
 import { StoreProvider } from './store/store'
 import Layout from './components/Layout'
@@ -18,7 +18,6 @@ import Sales from './pages/Sales'
 import CRM from './pages/CRM'
 import Parts from './pages/Parts'
 import Finance from './pages/Finance'
-import Analytics from './pages/Analytics'
 import Reports from './pages/Reports'
 import Documents from './pages/Documents'
 import Team from './pages/Team'
@@ -66,7 +65,7 @@ export default function App() {
               <Route path="crm/new" element={<CRM />} />
               <Route path="parts" element={<Parts />} />
               <Route path="finance" element={<Finance />} />
-              <Route path="analytics" element={<Analytics />} />
+              <Route path="analytics" element={<Navigate to="/reports#charts" replace />} />
               <Route path="reports" element={<Reports />} />
               <Route path="documents" element={<Documents />} />
               <Route path="team" element={<Team />} />

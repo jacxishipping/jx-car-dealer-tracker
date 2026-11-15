@@ -1,24 +1,29 @@
 import ResponsiveTable from '../components/ResponsiveTable'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { partStock, partValue } from '../store/engine'
 import { fmtMoney } from '../store/types'
+import { can } from '../lib/permissions'
 import { Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal, Money, PageHeader, TableScrollHint, usePagination } from '../components/ui'
 
 import {JXButton, JXCard, JXSelect} from '../components/JXUI'
 export default function Parts() {
   const { state, receivePartBatch, allocatePart, addPart } = useStore()
-  const { parts, partBatches, partMovements, partAllocations, vehicles } = state
+  const { parts, partBatches, partMovements, partAllocations, vehicles, currentRole } = state
+  const canWriteParts = can(currentRole, 'parts.write')
+  const canAllocateParts = can(currentRole, 'part.allocate')
   const [searchParams, setSearchParams] = useSearchParams()
   const receiveFromQuery = searchParams.get('receive') === '1'
+  const partFromQuery = searchParams.get('partId')
+  const partIdFromQuery = partFromQuery && parts.some((p) => p.id === partFromQuery) ? partFromQuery : null
   const [search, setSearch] = useState('')
-  const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null)
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(partIdFromQuery ?? parts[0]?.id ?? null)
   const [movementFilter, setMovementFilter] = useState('All')
   const [showReceiveLocal, setShowReceiveLocal] = useState(false)
-  const showReceive = showReceiveLocal || receiveFromQuery
+  const showReceive = showReceiveLocal || (receiveFromQuery && canWriteParts)
   const [showNewPart, setShowNewPart] = useState(false)
   const closeReceive = () => {
     setShowReceiveLocal(false)
@@ -35,12 +40,23 @@ export default function Parts() {
   const [newPartDone, setNewPartDone] = useState('')
 
   // Receive batch form
-  const [recvPartId, setRecvPartId] = useState(parts[0]?.id ?? '')
+  const [recvPartId, setRecvPartId] = useState(partIdFromQuery ?? parts[0]?.id ?? '')
   const [recvQty, setRecvQty] = useState('')
   const [recvPrice, setRecvPrice] = useState('')
   const [recvInvoice, setRecvInvoice] = useState('')
   const [recvError, setRecvError] = useState('')
   const [recvDone, setRecvDone] = useState('')
+  useEffect(() => {
+    if (searchParams.get('receive') !== '1') return
+    const id = searchParams.get('partId')
+    if (id) setRecvPartId(id)
+    if (canWriteParts) {
+      setShowReceiveLocal(true)
+      setRecvError('')
+      setRecvDone('')
+    }
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams, canWriteParts])
 
   // Allocate form
   const [allocPartId, setAllocPartId] = useState(parts[0]?.id ?? '')
@@ -67,6 +83,7 @@ export default function Parts() {
   const saleMovements = partMovements.filter((m) => m.type === 'sale')
 
   const submitReceive = () => {
+    if (!canWriteParts) { setRecvError('Your role cannot receive parts.'); return }
     const qty = parseInt(recvQty, 10)
     const price = parseFloat(recvPrice)
     if (!recvPartId) { setRecvError('Select a part.'); return }
@@ -81,6 +98,7 @@ export default function Parts() {
   }
 
   const submitAllocate = () => {
+    if (!canAllocateParts) { setAllocResult({ ok: false, text: 'Your role cannot allocate parts.' }); return }
     const qty = parseInt(allocQty, 10)
     if (!allocPartId) { setAllocResult({ ok: false, text: 'Select a part.' }); return }
     if (!allocVehicleId) { setAllocResult({ ok: false, text: 'Select a vehicle.' }); return }
@@ -121,7 +139,7 @@ export default function Parts() {
         subtitle="FIFO stock: oldest batches are consumed first, so the cost of every allocation is the real batch cost."
         actions={[
           <JXButton key="new" variant="outlined" size="sm" onClick={() => { setNewPartError(''); setNewPartDone(''); setShowNewPart(true) }}>+ New part</JXButton>,
-          <JXButton key="recv" variant="contained" size="sm" onClick={() => { if (!recvPartId && parts[0]) setRecvPartId(parts[0].id); setRecvError(''); setRecvDone(''); setShowReceiveLocal(true) }}>+ Receive batch</JXButton>,
+          canWriteParts ? <JXButton key="recv" variant="contained" size="sm" onClick={() => { if (!recvPartId && parts[0]) setRecvPartId(parts[0].id); setRecvError(''); setRecvDone(''); setShowReceiveLocal(true) }}>+ Receive batch</JXButton> : null,
           <ExportButton key="exp" filename="parts.csv" rows={parts.map((p) => ({ sku: p.sku, name: p.name, manufacturer: p.manufacturer, supplier: p.supplier, stock: partStock(partBatches, p.id), minStock: p.minStock, fifoValue: partValue(partBatches, p.id) }))} />,
         ]}
       />
@@ -149,7 +167,9 @@ export default function Parts() {
                 <JXTextField id="parts-search" className="jx-text-field" label="" aria-label="Search parts by name, SKU, manufacturer, or supplier" value={search} onChange={setSearch} placeholder="Search part, SKU, manufacturer, supplier…" />
               </div>
               {filteredParts.length === 0 ? (
-                <EmptyState title="No parts match" detail="Adjust the search." />
+                parts.length === 0
+                  ? <EmptyState kind="first-run" title="No parts yet" detail="Add a part to the catalog, then receive a batch to put it in stock." />
+                  : <EmptyState kind="filtered" title="No parts match" detail="Adjust the search." />
               ) : (
               <>
                 <TableScrollHint />
@@ -194,7 +214,9 @@ export default function Parts() {
                     Seed FIFO example: 12 brake pads to CDT-103 cost $620 (10 @ $50 from batch b-001 + 2 @ $60 from batch b-002).
                   </p>
                   {movementItems.length === 0 ? (
-                    <EmptyState title="No movements of this type" detail="Change the movement filter." />
+                    partMovements.length === 0
+                      ? <EmptyState kind="first-run" title="No movements yet" detail="Receive a batch or allocate parts to record the first movement." />
+                      : <EmptyState kind="filtered" title="No movements of this type" detail="Change the movement filter." />
                   ) : (
                 <>
                   <TableScrollHint />
@@ -283,7 +305,7 @@ export default function Parts() {
             <EmptyState title="No part selected" detail="Select a part from the catalog to see its batches." />
           ) : null}
 
-              {parts.length > 0 && (
+              {parts.length > 0 && canAllocateParts && (
               <JXCard title="Allocate to vehicle" description="Consumes the oldest batches first (FIFO). The returned FIFO cost is shown below — and the store's insufficient-stock error if there is not enough stock."
                 className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
                 {allocResult && <div className="mb-3"><Alert severity={allocResult.ok ? 'success' : 'error'} title={allocResult.ok ? 'Allocated' : 'Cannot allocate'} description={allocResult.text} /></div>}
@@ -319,7 +341,7 @@ export default function Parts() {
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">The new batch is dated today and becomes the newest FIFO batch — older batches are still consumed first.</p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <JXButton variant="outlined" onClick={closeReceive}>Close</JXButton>
-              <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>
+              {canWriteParts && <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>}
             </div>
           </Modal>
         )}

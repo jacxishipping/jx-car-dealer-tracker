@@ -1,10 +1,11 @@
 import ResponsiveTable from '../components/ResponsiveTable'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { useStore } from '../store/store'
-import { accountBalance, daysInStock, partStock, partValue, totalCash, vehicleAllInCost } from '../store/engine'
+import { accountBalance, daysInStock, monthlySeries, partStock, partValue, totalCash, vehicleAllInCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
-import { EmptyState, ExportButton, Field, inputCls, PageHeader, TableScrollHint } from '../components/ui'
+import { BarChart, Donut, EmptyState, ExportButton, Field, inputCls, KpiCard, PageHeader, TableScrollHint } from '../components/ui'
 
 import {JXButton, JXCard} from '../components/JXUI'
 type Row = Record<string, string | number | null | undefined>
@@ -32,6 +33,51 @@ type ReportId = (typeof REPORTS)[number]['id']
 const thCls = 'border-b border-slate-200 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400'
 const tdCls = 'border-b border-slate-100 px-4 py-2.5 text-slate-700 dark:border-slate-700 dark:text-slate-300'
 const inRange = (date: string, from: string, to: string) => date >= from && date <= to
+const DONUT_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#0ea5e9', '#f43f5e', '#8b5cf6', '#64748b']
+
+function ReportCharts() {
+  const { state } = useStore()
+  const location = useLocation()
+  const series = useMemo(() => monthlySeries(state, 6), [state])
+  const totalRevenue = series.reduce((sum, month) => sum + month.revenue, 0)
+  const totalProfit = series.reduce((sum, month) => sum + month.profit, 0)
+  const statusCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const vehicle of state.vehicles) map.set(vehicle.status, (map.get(vehicle.status) ?? 0) + 1)
+    return [...map.entries()].map(([label, value], index) => ({ label, value, color: DONUT_COLORS[index % DONUT_COLORS.length] }))
+  }, [state.vehicles])
+  const avgDays = state.vehicles.length > 0
+    ? Math.round(state.vehicles.reduce((sum, vehicle) => sum + daysInStock(vehicle), 0) / state.vehicles.length)
+    : 0
+  useEffect(() => {
+    if (location.hash === '#charts' || window.location.hash.includes('charts')) {
+      document.getElementById('charts')?.scrollIntoView()
+    }
+  }, [location.hash])
+  return (
+    <section id="charts" className="mb-8 scroll-mt-6">
+      <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Charts</h2>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Revenue (last 6 months)" value={fmtMoney(totalRevenue)} sub={`${state.sales.length} sales in total`} tone="indigo" />
+        <KpiCard label="Net profit (last 6 months)" value={fmtMoney(totalProfit)} sub={totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}% margin` : 'No revenue yet'} tone="emerald" />
+        <KpiCard label="Vehicles" value={String(state.vehicles.length)} sub={`Avg ${avgDays} days in stock`} tone="amber" />
+        <KpiCard label="Open leads" value={String(state.leads.filter((lead) => lead.stage !== 'Sold' && lead.stage !== 'Lost').length)} sub={`${state.leads.length} leads in total`} tone="sky" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <JXCard title="Revenue and profit" description="Last 6 months. Indigo is revenue, green is net profit." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+          {series.every((month) => month.revenue === 0 && month.profit === 0)
+            ? <EmptyState kind="first-run" title="No sales in the last 6 months" detail="Finalise a deal to see revenue and profit here." />
+            : <BarChart data={series.map((month) => ({ label: month.label, value: month.revenue, value2: month.profit }))} />}
+        </JXCard>
+        <JXCard title="Inventory by status" description="Every vehicle, grouped by current status." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+          {state.vehicles.length === 0
+            ? <EmptyState kind="first-run" title="No vehicles" />
+            : <Donut segments={statusCounts} total={state.vehicles.length} label="vehicles" />}
+        </JXCard>
+      </div>
+    </section>
+  )
+}
 
 export default function Reports() {
   const { state } = useStore()
@@ -183,6 +229,7 @@ export default function Reports() {
   return (
     <>
       <PageHeader title="Reports" subtitle="Pick a report, set the period, review the computed summary and export it as CSV. Nothing here is pre-written — every row is computed from live state." />
+      <ReportCharts />
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside>
           <div className="mb-3 lg:hidden">

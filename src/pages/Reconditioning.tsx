@@ -1,5 +1,5 @@
 import ResponsiveTable from '../components/ResponsiveTable'
-import {JXButton, JXCard, JXNumberField, JXProgress, JXSelect} from '../components/JXUI'
+import {JXButton, JXButtonGroup, JXCard, JXNumberField, JXProgress, JXSelect} from '../components/JXUI'
 // Reconditioning — recon jobs grouped by vehicle, with the vehicle's linked
 // expenses shown alongside each group. Jobs can be created and advanced
 // from this page via the store's addReconJob / updateReconJob actions;
@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Plus, Wrench } from 'lucide-react'
 import { AppTextField as JXTextField } from '../components/AppTextField'
+import { can } from '../lib/permissions'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type ExpenseCategory, type ReconJob } from '../store/types'
 import {
@@ -22,15 +23,20 @@ const num = (v: string) => (v === '' ? 0 : Number(v))
 
 const JOB_STATUSES: ReconJob['status'][] = ['Not started', 'In progress', 'Done']
 
+const technicianName = (job: ReconJob) => job.technician.trim() || 'Unassigned'
+
 export default function Reconditioning() {
   const { state, recordExpense, addReconJob, updateReconJob } = useStore()
+  const canRecon = can(state.currentRole, 'recon.write')
   const location = useLocation()
   const navigate = useNavigate()
   const newPage = location.pathname.endsWith('/reconditioning/new')
   const [createStep, setCreateStep] = useState(0)
   const [statusFilter, setStatusFilter] = useState('All')
+  const [view, setView] = useState<'list' | 'technician'>('list')
   const [expenseJob, setExpenseJob] = useState<ReconJob | null>(null)
-  const [nf, setNf] = useState({ vehicleId: '', title: '', category: 'Mechanical repairs' as ExpenseCategory, technician: '', estimatedCost: '', notes: '' })
+  const linkedVehicleId = new URLSearchParams(location.search).get('vehicleId') ?? ''
+  const [nf, setNf] = useState({ vehicleId: state.vehicles.some((v) => v.id === linkedVehicleId) ? linkedVehicleId : '', title: '', category: 'Mechanical repairs' as ExpenseCategory, technician: '', estimatedCost: '', notes: '' })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(() => (location.state as { reconSuccess?: string } | null)?.reconSuccess ?? null)
 
@@ -40,6 +46,14 @@ export default function Reconditioning() {
     () => state.reconJobs.filter((j) => statusFilter === 'All' || j.status === statusFilter),
     [state.reconJobs, statusFilter],
   )
+  const technicians = useMemo(() => {
+    const names = [...new Set(jobs.map(technicianName))]
+    return names.sort((a, b) => {
+      if (a === 'Unassigned') return 1
+      if (b === 'Unassigned') return -1
+      return a.localeCompare(b)
+    })
+  }, [jobs])
 
   // Group (filtered) jobs by vehicle, vehicles in stock-number order.
   const groups = useMemo(() => {
@@ -106,6 +120,7 @@ export default function Reconditioning() {
 
   // ---- "New job" form ----
   const openNewJob = () => {
+    if (!canRecon) return
     setError(null)
     setNf({ vehicleId: state.vehicles[0]?.id ?? '', title: '', category: 'Mechanical repairs', technician: '', estimatedCost: '', notes: '' })
     setCreateStep(0)
@@ -148,6 +163,13 @@ export default function Reconditioning() {
     const from = (location.state as { from?: string } | null)?.from
     navigate(from && from.startsWith('/reconditioning') && !from.endsWith('/new') ? from : '/reconditioning', { replace: true })
   }
+  if (newPage && !canRecon) return (
+    <>
+      <PageHeader title="New recon job" subtitle="Reconditioning follows your role." actions={<JXButton variant="outlined" size="sm" onClick={cancelNewJob}>Back to reconditioning</JXButton>} />
+      <Alert severity="info" title="Reconditioning is read-only for your role" description={`You are signed in as ${state.currentRole}. Creating recon jobs is available to Owner, Admin, Manager, and Technician.`} />
+    </>
+  )
+
   if (newPage) return <WorkflowPage title="New recon job" subtitle="Plan a reconditioning job and its estimated cost in three steps." steps={jobSteps} step={createStep} onStepChange={setCreateStep} onCancel={cancelNewJob} onBack={() => setCreateStep((current) => Math.max(0, current - 1))} onNext={() => { if (validateJobStep()) setCreateStep((current) => Math.min(jobSteps.length - 1, current + 1)) }} onSubmit={submitNewJob} submitLabel="Create job" error={error}>
     {createStep === 0 && <section aria-labelledby="recon-vehicle-title"><h2 id="recon-vehicle-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Choose vehicle and job</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Vehicle *" className="jx-select-field jx-field-select sm:col-span-2" searchable value={nf.vehicleId} onChange={(value) => setNf((current) => ({ ...current, vehicleId: value }))} options={state.vehicles.map((v) => ({ id: v.id, label: `${v.stockNumber} — ${v.year} ${v.make} ${v.model}` }))} /><Field label="Job title *"><JXTextField label="" className="jx-text-field" value={nf.title} onChange={(value) => setNf((current) => ({ ...current, title: value }))} placeholder="e.g. Brake service" /></Field></div></section>}
     {createStep === 1 && <section aria-labelledby="recon-assignment-title"><h2 id="recon-assignment-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Work assignment</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Category" className="jx-select-field jx-field-select" value={nf.category} onChange={(value) => setNf((current) => ({ ...current, category: value as ExpenseCategory }))} options={EXPENSE_CATEGORIES.map((category) => ({ id: category, label: category }))} /><Field label="Technician"><JXTextField label="" className="jx-text-field" value={nf.technician} onChange={(value) => setNf((current) => ({ ...current, technician: value }))} placeholder="Leave blank to assign later" /></Field></div></section>}
@@ -182,15 +204,78 @@ export default function Reconditioning() {
 
       {success && <div className="mb-4"><Alert severity="success" title="Done" description={success} /></div>}
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+          <JXButtonGroup
+            ariaLabel="Reconditioning view"
+            items={[{ id: 'list', label: 'List' }, { id: 'technician', label: 'By technician' }]}
+            activeId={view}
+            variant="segmented"
+            size="sm"
+            onChange={(id) => setView(id as 'list' | 'technician')}
+          />
           <JXSelect label="Filter by job status" className="jx-select-field jx-sr-label w-full sm:w-auto" value={statusFilter} onChange={setStatusFilter} options={[{ id: 'All', label: 'All statuses' }, ...JOB_STATUSES.map((status) => ({ id: status, label: status }))]} />
-          <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewJob}>
-            <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New job</span>
-          </JXButton>
+          {canRecon && (
+            <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewJob}>
+              <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />New job</span>
+            </JXButton>
+          )}
       </div>
 
-      {groups.length === 0 ? (
-        <EmptyState title="No recon jobs found" detail="No jobs match this status filter, or no recon jobs exist yet." />
+      {jobs.length === 0 ? (
+        state.reconJobs.length === 0 ? (
+          <EmptyState
+            kind="first-run"
+            title="No recon jobs yet"
+            detail={canRecon ? 'Create a job to track shop work by vehicle and technician.' : `Signed in as ${state.currentRole}. Creating recon jobs is available to Owner, Admin, Manager, and Technician.`}
+            action={canRecon ? <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewJob}>New job</JXButton> : undefined}
+          />
+        ) : (
+          <EmptyState
+            kind="filtered"
+            title="No recon jobs match"
+            detail="This status has no jobs."
+            action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => setStatusFilter('All')}>Clear filter</JXButton>}
+          />
+        )
+      ) : view === 'technician' ? (
+        <div className="space-y-5">
+          {technicians.map((technician) => (
+            <section key={technician} className="rounded-[var(--radius-card)] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <h2 className="mb-3 text-base font-semibold text-slate-900 dark:text-white">{technician}</h2>
+              <div className="grid gap-3 md:grid-cols-3">
+                {JOB_STATUSES.map((status) => {
+                  const column = jobs.filter((job) => technicianName(job) === technician && job.status === status)
+                  return (
+                    <div key={status} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{status} ({column.length})</h3>
+                      {column.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">None</p> : (
+                        <ul className="space-y-2">
+                          {column.map((job) => {
+                            const vehicle = vehicleById.get(job.vehicleId)
+                            return (
+                              <li key={job.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                                <p className="font-semibold text-slate-900 dark:text-white">{job.title}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{vehicle ? `${vehicle.stockNumber} · ${vehicle.year} ${vehicle.make} ${vehicle.model}` : job.vehicleId}</p>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{job.category} · est. <Money value={job.estimatedCost} /></p>
+                                {job.status !== 'Done' && (
+                                  <div className="mt-2">
+                                    <JXButton variant="soft" size="sm" lockWidth={false} onClick={() => advance(job)}>
+                                      {job.status === 'Not started' ? 'Start' : 'Mark done'}
+                                    </JXButton>
+                                  </div>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       ) : (
         <div className="space-y-5">
           {groups.map(({ vehicle, vehicleId, jobs: vJobs }) => {

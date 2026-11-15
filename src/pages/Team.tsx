@@ -2,23 +2,40 @@ import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
+import { can, type Permission } from '../lib/permissions'
 import { useStore } from '../store/store'
 import { ROLES, type Role } from '../store/types'
 import { Alert, EmptyState, Field, Modal, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
 import {JXAvatar, JXAvatarGroup, JXButton, JXSelect, JXSwitch, JXTimeline} from '../components/JXUI'
-// Read-only permission matrix — what each role is allowed to do in the app's design.
-// Enforced in the UI only (buttons hidden/disabled); there is no server to enforce it yet.
-const MATRIX: { capability: string; perms: Record<Role, boolean> }[] = [
-  { capability: 'View dashboard, inventory & reports', perms: { Owner: true, Admin: true, Manager: true, Sales: true, Accountant: true, Technician: true, Viewer: true } },
-  { capability: 'Add / edit vehicles & purchases', perms: { Owner: true, Admin: true, Manager: true, Sales: false, Accountant: false, Technician: false, Viewer: false } },
-  { capability: 'Create deals & finalise sales', perms: { Owner: true, Admin: true, Manager: true, Sales: true, Accountant: false, Technician: false, Viewer: false } },
-  { capability: 'Record payments & transfers (Finance)', perms: { Owner: true, Admin: true, Manager: false, Sales: false, Accountant: true, Technician: false, Viewer: false } },
-  { capability: 'Record expenses', perms: { Owner: true, Admin: true, Manager: true, Sales: false, Accountant: true, Technician: false, Viewer: false } },
-  { capability: 'Reconditioning & parts allocation', perms: { Owner: true, Admin: true, Manager: true, Sales: false, Accountant: false, Technician: true, Viewer: false } },
-  { capability: 'Manage team & roles', perms: { Owner: true, Admin: true, Manager: false, Sales: false, Accountant: false, Technician: false, Viewer: false } },
-  { capability: 'Change settings & reset demo data', perms: { Owner: true, Admin: true, Manager: false, Sales: false, Accountant: false, Technician: false, Viewer: false } },
+// Each row is one permission from ROLE_PERMISSIONS, except the open-app row which every role can do.
+const MATRIX: { capability: string; permission: Permission | null }[] = [
+  { capability: 'View dashboard, inventory and reports', permission: null },
+  { capability: 'View finance', permission: 'finance.read' },
+  { capability: 'Add vehicles', permission: 'vehicle.create' },
+  { capability: 'Edit vehicles', permission: 'vehicle.update' },
+  { capability: 'Record purchases', permission: 'purchase.create' },
+  { capability: 'Book transport', permission: 'transport.create' },
+  { capability: 'Record expenses', permission: 'expense.create' },
+  { capability: 'Pay expenses', permission: 'expense.pay' },
+  { capability: 'Reconditioning jobs', permission: 'recon.write' },
+  { capability: 'Allocate parts', permission: 'part.allocate' },
+  { capability: 'Manage parts', permission: 'parts.write' },
+  { capability: 'Add customers', permission: 'customer.create' },
+  { capability: 'Create leads', permission: 'lead.create' },
+  { capability: 'Create deals', permission: 'deal.create' },
+  { capability: 'Finalise sales', permission: 'sale.finalize' },
+  { capability: 'Record payments', permission: 'payment.record' },
+  { capability: 'Finance writes (accounts and transfers)', permission: 'finance.write' },
+  { capability: 'Add documents', permission: 'document.write' },
+  { capability: 'Run AI actions', permission: 'ai.execute' },
+  { capability: 'Read MCP tools', permission: 'mcp.read' },
+  { capability: 'Write via MCP', permission: 'mcp.write' },
+  { capability: 'Manage team and roles', permission: 'team.manage' },
+  { capability: 'Change settings and reset demo data', permission: 'settings.write' },
 ]
+
+const roleAllows = (role: Role, permission: Permission | null) => permission === null || can(role, permission)
 
 const CAN_MANAGE_TEAM = ['Owner', 'Admin'] as const
 
@@ -109,7 +126,7 @@ export default function Team() {
 
             <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-900 dark:text-white">Role permission matrix</h2>
             <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-              Read-only reference. Roles are enforced at UI level in this build (buttons hidden or disabled); a production backend must enforce them server-side.
+              Read-only reference of the role permissions. A check means that role includes the permission, and the matching action is shown or hidden from that role.
             </p>
               <TableScrollHint />
               <div className="mb-4 overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
@@ -119,11 +136,14 @@ export default function Team() {
                     {MATRIX.map((row) => (
                       <tr key={row.capability}>
                         <td className={tdCls}>{row.capability}</td>
-                        {ROLES.map((r) => (
-                            <td key={r} className={`${tdCls} text-center ${row.perms[r] ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                              {row.perms[r] ? '✓' : '—'}
+                        {ROLES.map((r) => {
+                          const allowed = roleAllows(r, row.permission)
+                          return (
+                            <td key={r} className={`${tdCls} text-center ${allowed ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                              {allowed ? '✓' : '—'}
                             </td>
-                ))}
+                          )
+                        })}
                           </tr>
                         ))}
                       </tbody>

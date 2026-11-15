@@ -1,16 +1,16 @@
 import {JXAvatar, JXButton, JXSelect} from './JXUI'
 // Application shell: collapsible sidebar, top bar (global search, notifications,
 // quick-create, role switcher, theme toggle, user menu), main content area.
-// JXUI: JXAvatar + JXSelect (verified APIs) + JXButton. Theme is applied by
-// toggling the `dark` class on <html> and by JXThemeProvider in main.tsx.
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useJXTheme } from '@jacxishippingorg/jx-ui-react'
 import {
-  BarChart3, Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign, FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon, ShoppingCart, Sparkles, Sun, Truck, Users, Wallet, Wrench, X, } from 'lucide-react'
+  Bell, Car, ChevronLeft, ChevronRight, ClipboardList, DollarSign, FileText, LayoutDashboard, LogOut, Menu, Moon, Package, Plus, Search, Settings as SettingsIcon, ShoppingCart, Sparkles, Sun, Truck, Users, Wallet, Wrench, X, } from 'lucide-react'
 
 import { AppTextField as JXTextField } from "./AppTextField"
 import { useStore } from '../store/store'
-import { ROLES } from '../store/types'
+import { ROLES, type Role } from '../store/types'
+import { can } from '../lib/permissions'
 import { useFocusTrap } from './useFocusTrap'
 
 const NAV_SECTIONS = [
@@ -22,14 +22,14 @@ const NAV_SECTIONS = [
       { to: '/purchases', label: 'Purchases', icon: ShoppingCart },
       { to: '/transportation', label: 'Transportation', icon: Truck },
       { to: '/reconditioning', label: 'Reconditioning', icon: Wrench },
-      { to: '/parts', label: 'Parts Inventory', icon: Package },
+      { to: '/parts', label: 'Parts', icon: Package },
     ],
   },
   {
     label: 'Sales & CRM',
     items: [
       { to: '/sales', label: 'Sales', icon: DollarSign },
-      { to: '/crm', label: 'CRM / Clients', icon: Users },
+      { to: '/crm', label: 'CRM', icon: Users },
     ],
   },
   {
@@ -37,7 +37,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/expenses', label: 'Expenses', icon: ClipboardList },
       { to: '/finance', label: 'Finance', icon: Wallet },
-      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
       { to: '/reports', label: 'Reports', icon: FileText },
       { to: '/documents', label: 'Documents', icon: FileText },
     ],
@@ -45,23 +44,71 @@ const NAV_SECTIONS = [
   {
     label: 'AI & Admin',
     items: [
-      { to: '/ai-assistant', label: 'AI Voice-to-Work', icon: Sparkles },
-      { to: '/mcp', label: 'MCP Integration', icon: FileText },
-      { to: '/team', label: 'Team & Permissions', icon: Users },
+      { to: '/ai-assistant', label: 'AI Assistant', icon: Sparkles },
+      { to: '/team', label: 'Team', icon: Users },
       { to: '/settings', label: 'Settings', icon: SettingsIcon },
     ],
   },
 ] as const
 
-const QUICK_CREATE = [
-  { to: '/inventory/new', label: 'New vehicle' },
-  { to: '/purchases/new', label: 'New purchase' },
-  { to: '/expenses?new=1', label: 'New expense' },
-  { to: '/sales/new', label: 'New deal' },
-  { to: '/crm/new', label: 'New customer' },
-  { to: '/parts?receive=1', label: 'Receive parts' },
-  { to: '/transportation?new=1', label: 'New transport order' },
+const QUICK_CREATE: { to: string; label: string; permission: 'vehicle.create' | 'purchase.create' | 'expense.create' | 'deal.create' | 'customer.create' | 'parts.write' | 'transport.create' }[] = [
+  { to: '/inventory/new', label: 'New vehicle', permission: 'vehicle.create' },
+  { to: '/purchases/new', label: 'New purchase', permission: 'purchase.create' },
+  { to: '/expenses?new=1', label: 'New expense', permission: 'expense.create' },
+  { to: '/sales/new', label: 'New deal', permission: 'deal.create' },
+  { to: '/crm/new', label: 'New customer', permission: 'customer.create' },
+  { to: '/parts?receive=1', label: 'Receive parts', permission: 'parts.write' },
+  { to: '/transportation?new=1', label: 'New transport order', permission: 'transport.create' },
 ]
+
+const SEARCH_PLACEHOLDER = 'Search vehicles, customers, deals, parts…'
+
+type SearchHit = {
+  key: string
+  kind: 'Vehicle' | 'Customer' | 'Deal' | 'Part'
+  label: string
+  detail: string
+  to: string
+}
+
+function SearchResults({ id, hits, onPick }: { id: string; hits: SearchHit[]; onPick: () => void }) {
+  if (hits.length === 0) {
+    return (
+      <div id={id} role="status" className="absolute left-0 right-0 top-full z-40 mt-1 rounded-[var(--radius-card)] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)] dark:text-slate-400">
+        No matches.
+      </div>
+    )
+  }
+  return (
+    <div id={id} role="listbox" aria-label="Search results" className="absolute left-0 right-0 top-full z-40 mt-1 max-h-80 overflow-y-auto rounded-[var(--radius-card)] border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+      {hits.map((hit) => (
+        <Link
+          key={hit.key}
+          to={hit.to}
+          role="option"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onPick}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+            event.preventDefault()
+            const options = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])
+            const index = options.indexOf(event.currentTarget)
+            const next = options[index + (event.key === 'ArrowDown' ? 1 : -1)]
+            if (next) next.focus()
+            else if (event.key === 'ArrowUp') event.currentTarget.closest('form')?.querySelector<HTMLElement>('input')?.focus()
+          }}
+          className="flex items-start gap-3 px-3 py-2 text-left hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-800 dark:focus:bg-slate-800"
+        >
+          <span className="mt-0.5 w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{hit.kind}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-slate-900 dark:text-white">{hit.label}</span>
+            {hit.detail && <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{hit.detail}</span>}
+          </span>
+        </Link>
+      ))}
+    </div>
+  )
+}
 
 export default function Layout() {
   const { state, setRole, markNotificationRead, updateSettings, apiMode, logout, lastError, clearError } = useStore()
@@ -71,15 +118,87 @@ export default function Layout() {
   const [showBell, setShowBell] = useState(false)
   const [showQuick, setShowQuick] = useState(false)
   const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const headerActionsRef = useRef<HTMLDivElement>(null)
   const mobileDrawerRef = useRef<HTMLElement>(null)
+  const quickMenuRef = useRef<HTMLDivElement>(null)
+  const bellMenuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const dark = state.settings.theme === 'dark'
+  const { setMode } = useJXTheme()
   const unread = state.notifications.filter((n) => !n.read).length
+  const quickItems = useMemo(() => QUICK_CREATE.filter(q => can(state.currentRole, q.permission)), [state.currentRole])
+  const searchHits = useMemo((): SearchHit[] => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    const hits: SearchHit[] = []
+    let vehicles = 0
+    for (const vehicle of state.vehicles) {
+      if (vehicles >= 5) break
+      const hay = [vehicle.stockNumber, vehicle.vin, vehicle.year, vehicle.make, vehicle.model, vehicle.trim].join(' ').toLowerCase()
+      if (!hay.includes(q)) continue
+      vehicles += 1
+      hits.push({
+        key: `vehicle-${vehicle.id}`,
+        kind: 'Vehicle',
+        label: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+        detail: `${vehicle.stockNumber} · ${vehicle.vin}`,
+        to: `/inventory/${vehicle.id}`,
+      })
+    }
+    let customers = 0
+    for (const customer of state.customers) {
+      if (customers >= 5) break
+      const hay = [customer.name, customer.phone, customer.email].join(' ').toLowerCase()
+      if (!hay.includes(q)) continue
+      customers += 1
+      hits.push({
+        key: `customer-${customer.id}`,
+        kind: 'Customer',
+        label: customer.name,
+        detail: [customer.phone, customer.email].filter(Boolean).join(' · '),
+        to: `/crm?customer=${encodeURIComponent(customer.id)}`,
+      })
+    }
+    let deals = 0
+    for (const deal of state.deals) {
+      if (deals >= 5) break
+      const customer = state.customers.find((item) => item.id === deal.customerId)
+      const vehicle = state.vehicles.find((item) => item.id === deal.vehicleId)
+      const hay = [deal.ref, deal.status, deal.salesperson, customer?.name, vehicle?.stockNumber, vehicle?.make, vehicle?.model].join(' ').toLowerCase()
+      if (!hay.includes(q)) continue
+      deals += 1
+      const vehicleLabel = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : ''
+      hits.push({
+        key: `deal-${deal.id}`,
+        kind: 'Deal',
+        label: deal.ref,
+        detail: [customer?.name, vehicleLabel, deal.status].filter(Boolean).join(' · '),
+        to: `/sales?deal=${encodeURIComponent(deal.id)}`,
+      })
+    }
+    let parts = 0
+    for (const part of state.parts) {
+      if (parts >= 5) break
+      const hay = [part.sku, part.name, part.manufacturer, part.supplier].join(' ').toLowerCase()
+      if (!hay.includes(q)) continue
+      parts += 1
+      hits.push({
+        key: `part-${part.id}`,
+        kind: 'Part',
+        label: part.name,
+        detail: [part.sku, part.manufacturer].filter(Boolean).join(' · '),
+        to: '/parts',
+      })
+    }
+    return hits
+  }, [query, state.vehicles, state.customers, state.deals, state.parts])
+  const showSearchResults = searchOpen && query.trim().length > 0
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
-  }, [dark])
+    setMode(dark ? 'dark' : 'light')
+  }, [dark, setMode])
 
   useFocusTrap(mobileDrawerRef, mobileOpen, () => setMobileOpen(false))
 
@@ -113,6 +232,44 @@ export default function Layout() {
       document.removeEventListener('mousedown', onMouseDown)
     }
   }, [showQuick, showBell])
+
+  useEffect(() => {
+    if (!showQuick && !showBell) return
+    const root = showQuick ? quickMenuRef.current : bellMenuRef.current
+    root?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+  }, [showQuick, showBell])
+
+  const closeSearch = () => {
+    setSearchOpen(false)
+    setShowMobileSearch(false)
+  }
+  const onQueryChange = (value: string) => {
+    setQuery(value)
+    setSearchOpen(true)
+  }
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSearchOpen(false)
+    const term = query.trim()
+    if (!term) return
+    navigate(`/inventory?q=${encodeURIComponent(term)}`)
+    setShowMobileSearch(false)
+  }
+  const onSearchKeyDown = (event: ReactKeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'Escape') {
+      setSearchOpen(false)
+      return
+    }
+    if (event.key !== 'ArrowDown') return
+    const first = event.currentTarget.querySelector<HTMLElement>('[role="option"]')
+    if (!first) return
+    event.preventDefault()
+    first.focus()
+  }
+  const onSearchBlur = (event: FocusEvent<HTMLFormElement>) => {
+    const next = event.relatedTarget
+    if (!(next instanceof Node) || !event.currentTarget.contains(next)) setSearchOpen(false)
+  }
 
   const toggleTheme = () => {
     updateSettings({ theme: dark ? 'light' : 'dark' })
@@ -202,58 +359,82 @@ export default function Layout() {
           <button type="button" className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-control)] text-slate-700 hover:bg-slate-100 sm:hidden dark:text-slate-200 dark:hover:bg-slate-800" onClick={() => setShowMobileSearch((s) => !s)} aria-label="Search">
             <Search className="h-5 w-5" />
           </button>
-          <form className="relative hidden min-w-0 flex-1 sm:block" onSubmit={(e) => { e.preventDefault(); if (query.trim()) navigate(`/inventory?q=${encodeURIComponent(query.trim())}`) }}>
+          <form
+            className="relative hidden min-w-0 flex-1 sm:block"
+            role="search"
+            onSubmit={submitSearch}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={onSearchBlur}
+            onKeyDown={onSearchKeyDown}
+          >
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
             <JXTextField
               id="header-vehicle-search"
               className="jx-text-field jx-global-search"
               label=""
               value={query}
-              onChange={setQuery}
-              placeholder="Search vehicles by VIN, stock no, make or model…"
-              aria-label="Search vehicles by VIN, stock number, make, or model"
+              onChange={onQueryChange}
+              placeholder={SEARCH_PLACEHOLDER}
+              aria-label="Search vehicles, customers, deals, parts"
+              aria-autocomplete="list"
+              aria-expanded={showSearchResults}
+              aria-controls={showSearchResults ? 'header-search-results' : undefined}
+              autoComplete="off"
             />
+            {showSearchResults && <SearchResults id="header-search-results" hits={searchHits} onPick={closeSearch} />}
           </form>
           {showMobileSearch && (
-            <form className="order-10 w-full sm:hidden" onSubmit={(e) => { e.preventDefault(); if (query.trim()) { navigate(`/inventory?q=${encodeURIComponent(query.trim())}`); setShowMobileSearch(false) } }}>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                <JXTextField
-                  id="mobile-header-vehicle-search"
-                  className="jx-text-field jx-global-search"
-                  label=""
-                  value={query}
-                  onChange={setQuery}
-                  autoFocus
-                  placeholder="Search vehicles by VIN, stock no, make or model…"
-                  aria-label="Search vehicles by VIN, stock number, make, or model"
-                />
-              </div>
+            <form
+              className="relative order-10 w-full sm:hidden"
+              role="search"
+              onSubmit={submitSearch}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={onSearchBlur}
+              onKeyDown={onSearchKeyDown}
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+              <JXTextField
+                id="mobile-header-vehicle-search"
+                className="jx-text-field jx-global-search"
+                label=""
+                value={query}
+                onChange={onQueryChange}
+                autoFocus
+                placeholder={SEARCH_PLACEHOLDER}
+                aria-label="Search vehicles, customers, deals, parts"
+                aria-autocomplete="list"
+                aria-expanded={showSearchResults}
+                aria-controls={showSearchResults ? 'mobile-header-search-results' : undefined}
+                autoComplete="off"
+              />
+              {showSearchResults && <SearchResults id="mobile-header-search-results" hits={searchHits} onPick={closeSearch} />}
             </form>
           )}
           <div ref={headerActionsRef} className="ml-auto flex items-center gap-1.5">
+            {quickItems.length > 0 && (
+              <div className="relative">
+                <JXButton variant="outlined" size="sm" lockWidth={false} className="!min-h-[44px] !min-w-[44px]" onClick={() => { setShowQuick((s) => !s); setShowBell(false) }} aria-expanded={showQuick} aria-haspopup="menu" aria-controls={showQuick ? 'quick-create-menu' : undefined}>
+                  <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Quick create</span></span>
+                </JXButton>
+                {showQuick && (
+                  <div ref={quickMenuRef} id="quick-create-menu" role="menu" aria-label="Quick create" className="absolute right-0 mt-2 w-48 rounded-[var(--radius-card)] border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                    {quickItems.map((q) => (
+                      <Link key={q.label} to={q.to} role="menuitem" onClick={() => setShowQuick(false)} className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:text-slate-200 dark:hover:bg-slate-800 dark:focus:bg-slate-800">{q.label}</Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="relative">
-              <JXButton variant="outlined" size="sm" lockWidth={false} className="!min-h-[44px] !min-w-[44px]" onClick={() => { setShowQuick((s) => !s); setShowBell(false) }} aria-expanded={showQuick} aria-haspopup="true">
-                <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Quick create</span></span>
-              </JXButton>
-              {showQuick && (
-                <div className="absolute right-0 mt-2 w-48 rounded-[var(--radius-card)] border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-                  {QUICK_CREATE.map((q) => (
-                    <Link key={q.label} to={q.to} onClick={() => setShowQuick(false)} className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{q.label}</Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <button type="button" onClick={() => { setShowBell((s) => !s); setShowQuick(false) }} aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'} aria-expanded={showBell} aria-haspopup="true" className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+              <button type="button" onClick={() => { setShowBell((s) => !s); setShowQuick(false) }} aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'} aria-expanded={showBell} aria-haspopup="menu" aria-controls={showBell ? 'notification-menu' : undefined} className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
                 <Bell className="h-5 w-5" />
                 {unread > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{unread}</span>}
               </button>
               {showBell && (
-                <div className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-[var(--radius-card)] border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                <div ref={bellMenuRef} id="notification-menu" role="menu" aria-label="Notifications" className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-[var(--radius-card)] border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
                   {state.notifications.length === 0 && <p className="p-3 text-sm text-slate-500 dark:text-slate-400">No notifications.</p>}
                   {state.notifications.map((n) => (
-                    <button type="button" key={n.id} onClick={() => markNotificationRead(n.id)} className="block w-full rounded-[var(--radius-control)] p-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <button type="button" role="menuitem" key={n.id} onClick={() => { markNotificationRead(n.id); setShowBell(false); if (n.to) navigate(n.to) }} className="block w-full rounded-[var(--radius-control)] p-2 text-left hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-800 dark:focus:bg-slate-800">
                       <p className={`text-sm font-semibold ${n.read ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>{n.title}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{n.detail}</p>
                     </button>
@@ -275,7 +456,7 @@ export default function Layout() {
                     className="jx-select-field jx-sr-label jx-header-select"
                     options={ROLES.map((r) => ({ id: r, label: r }))}
                     value={state.currentRole}
-                    onChange={(v) => setRole(v as typeof state.currentRole)}
+                    onChange={(v) => setRole(v as Role)}
                   />
                 </div>
               </div>
@@ -318,8 +499,4 @@ export default function Layout() {
       </div>
     </div>
   )
-}
-
-export function Shell({ children }: { children: ReactNode }) {
-  return <>{children}</>
 }

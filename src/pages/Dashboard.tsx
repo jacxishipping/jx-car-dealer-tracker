@@ -1,13 +1,30 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, Clock, Package, TrendingUp, Wallet } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { AlertTriangle, ArrowRight, Clock, FileWarning, Package, TrendingUp, Wallet } from 'lucide-react'
 
 import { useStore } from '../store/store'
-import { dashboardKpis, daysInStock, forecast, monthlySeries, partStock } from '../store/engine'
+import { dashboardKpis, daysInStock, forecast, monthlySeries, partStock, vehicleAllInCost } from '../store/engine'
 import { fmtMoney } from '../store/types'
 import { Alert, BarChart, Donut, KpiCard, Money, PageHeader, StatusChip } from '../components/ui'
 
-import {JXCard, JXSelect} from '../components/JXUI'
+import { JXButton, JXCard, JXSelect } from '../components/JXUI'
+
+const ALERT_CAP = 5
+
+function addDays(iso: string, days: number) {
+  const date = new Date(`${iso}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function recordHref(entityType: string, entityId: string) {
+  if (entityType === 'Vehicle') return `/inventory/${entityId}`
+  if (entityType === 'Customer') return '/crm'
+  if (entityType === 'Deal') return '/sales'
+  if (entityType === 'Expense') return '/expenses'
+  if (entityType === 'Transaction') return '/finance'
+  return '/documents'
+}
 const STATUS_COLORS: Record<string, string> = {
   Purchased: '#64748b', 'Awaiting pickup': '#f59e0b', 'In transit': '#0ea5e9', Received: '#10b981',
   Inspection: '#f59e0b', 'In reconditioning': '#f97316', Available: '#10b981', Reserved: '#4f46e5',
@@ -16,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const { state } = useStore()
+  const navigate = useNavigate()
   const [alertFilter, setAlertFilter] = useState('All')
   const [showMoreKpis, setShowMoreKpis] = useState(false)
   const kpis = dashboardKpis(state)
@@ -40,6 +58,29 @@ export default function Dashboard() {
   const overdueFollowUps = state.leads.filter(
     (l) => l.followUpDate < today && !['Sold', 'Lost'].includes(l.stage),
   )
+  const queuedFollowUps = state.leads
+    .filter((l) => !['Sold', 'Lost'].includes(l.stage) && l.followUpDate <= today)
+    .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate))
+  const underwater = state.vehicles.flatMap((v) => {
+    if (['Sold', 'Wholesale', 'Returned'].includes(v.status)) return []
+    const allIn = vehicleAllInCost(v, state.expenses, state.partAllocations, state.settings.overheadPerVehicle)
+    return v.askingPrice < allIn ? [{ vehicle: v, allIn }] : []
+  })
+  const docHorizon = addDays(today, 30)
+  const expiringDocs = state.documents.filter((d) => d.expiresAt != null && d.expiresAt >= today && d.expiresAt <= docHorizon)
+  const soldWithoutSale = state.vehicles.filter(
+    (v) => v.status === 'Sold' && !state.sales.some((s) => s.vehicleId === v.id),
+  )
+  const showGroup = alertFilter === 'All'
+  const take = <T,>(items: T[], active: boolean) => active
+    ? { rows: items.slice(0, ALERT_CAP), extra: Math.max(0, items.length - ALERT_CAP) }
+    : { rows: [] as T[], extra: 0 }
+  const agedAlerts = take(aged, alertFilter === 'All' || alertFilter === 'Aged stock')
+  const transportAlerts = take(unpaidTransport, alertFilter === 'All' || alertFilter === 'Unpaid transport')
+  const receivableAlerts = take(unpaidReceivables, alertFilter === 'All' || alertFilter === 'Receivables')
+  const partsAlerts = take(lowStockParts, alertFilter === 'All' || alertFilter === 'Low parts')
+  const followAlerts = take(overdueFollowUps, alertFilter === 'All' || alertFilter === 'Overdue follow-ups')
+  const hiddenByCap = agedAlerts.extra + transportAlerts.extra + receivableAlerts.extra + partsAlerts.extra + followAlerts.extra
   const visibleAlerts = (alertFilter === 'All' ? aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length
     : alertFilter === 'Aged stock' ? aged.length
       : alertFilter === 'Unpaid transport' ? unpaidTransport.length
@@ -52,9 +93,9 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={`${state.settings.orgName} — ${kpis.stockCount} vehicles in stock · ${state.vehicles.length} total vehicles`}
         actions={
-            <Link to="/inventory" className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-control)] bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              View inventory <ArrowRight className="h-4 w-4" />
-            </Link>
+            <JXButton variant="contained" size="sm" onClick={() => navigate('/inventory')} endIcon={<ArrowRight className="h-4 w-4" />}>
+              View inventory
+            </JXButton>
         }
       />
 
@@ -101,12 +142,9 @@ export default function Dashboard() {
                           <p className="text-sm text-slate-600 dark:text-slate-300">
                             No vehicles in inventory yet. Record your first acquisition to populate stock, cost basis, and ledger entries.
                           </p>
-                          <Link
-                            to="/purchases?new=1"
-                            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-control)] bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
-                          >
+                          <JXButton variant="contained" size="sm" onClick={() => navigate('/purchases?new=1')}>
                             + Record first purchase
-                          </Link>
+                          </JXButton>
                         </div>
                         ) : (
                         <Donut segments={donutSegments} total={state.vehicles.length} label="vehicles" />
@@ -122,16 +160,63 @@ export default function Dashboard() {
       </div>
 
                   <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                      <div className="lg:col-span-2">
+                        <JXCard title="Today" kicker="Queue" description="Follow-ups due, units priced under all-in cost, documents expiring within 30 days, and Sold units missing a sale record." className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+                          {queuedFollowUps.length + underwater.length + expiringDocs.length + soldWithoutSale.length === 0 ? (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Nothing queued for today.</p>
+                          ) : (
+                            <ul className="space-y-3 text-sm">
+                              {soldWithoutSale.map((vehicle) => (
+                                <li key={`sold-${vehicle.id}`} className="flex items-start gap-2">
+                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                                  <Link to={`/inventory/${vehicle.id}`} className="min-w-0 flex-1 rounded-sm font-medium text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+                                    Sold without sale — {vehicle.stockNumber} {vehicle.year} {vehicle.make} {vehicle.model}. Start a deal or correct the status.
+                                  </Link>
+                                </li>
+                              ))}
+                              {queuedFollowUps.map((lead) => {
+                                const customer = state.customers.find((c) => c.id === lead.customerId)
+                                const overdue = lead.followUpDate < today
+                                return (
+                                  <li key={lead.id} className="flex items-start gap-2">
+                                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                                    <Link to={`/crm?lead=${lead.id}&followUp=${overdue ? 'overdue' : 'today'}`} className="min-w-0 flex-1 rounded-sm font-medium text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+                                      {overdue ? 'Overdue' : 'Due today'} — {customer?.name ?? lead.customerId} ({lead.stage}), follow-up {lead.followUpDate}
+                                    </Link>
+                                  </li>
+                                )
+                              })}
+                              {underwater.map(({ vehicle, allIn }) => (
+                                <li key={vehicle.id} className="flex items-start gap-2">
+                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                                  <Link to={`/inventory/${vehicle.id}`} className="min-w-0 flex-1 rounded-sm font-medium text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+                                    Underwater — {vehicle.stockNumber} {vehicle.year} {vehicle.make} {vehicle.model}, asking <Money value={vehicle.askingPrice} /> vs all-in <Money value={allIn} />
+                                  </Link>
+                                </li>
+                              ))}
+                              {expiringDocs.map((doc) => (
+                                <li key={doc.id} className="flex items-start gap-2">
+                                  <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                                  <Link to={recordHref(doc.entityType, doc.entityId)} className="min-w-0 flex-1 rounded-sm font-medium text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+                                    Expiring — {doc.title} ({doc.type}), {doc.expiresAt}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </JXCard>
+                      </div>
                       <JXCard title="Operational alerts" kicker="Needs attention" description={`Target hold is ${state.settings.targetHoldDays} days. ${aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} open alerts.`} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
                         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Showing {visibleAlerts} of {aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} items</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Showing {visibleAlerts - hiddenByCap} of {aged.length + unpaidTransport.length + unpaidReceivables.length + lowStockParts.length + overdueFollowUps.length} items{hiddenByCap > 0 ? ` · first ${ALERT_CAP} in each group` : ''}</p>
                           <div className="w-full sm:w-52"><JXSelect label="Filter alerts" className="jx-select-field jx-field-select" value={alertFilter} onChange={setAlertFilter} options={['All', 'Aged stock', 'Unpaid transport', 'Receivables', 'Low parts', 'Overdue follow-ups'].map((filter) => ({ id: filter, label: filter }))} /></div>
                         </div>
                         <ul className="space-y-3 text-sm">
                           {visibleAlerts === 0 && (
                             <li className="text-slate-500 dark:text-slate-400">No open alerts in this view.</li>
                           )}
-                          {(alertFilter === 'All' || alertFilter === 'Aged stock') && aged.map((v) => (
+                          {showGroup && agedAlerts.rows.length > 0 && <li className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Aged stock</li>}
+                          {agedAlerts.rows.map((v) => (
                             <li key={`aged-${v.id}`} className="flex items-start gap-2">
                               <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                               <span>
@@ -140,7 +225,9 @@ export default function Dashboard() {
                               </span>
                             </li>
                           ))}
-                          {(alertFilter === 'All' || alertFilter === 'Unpaid transport') && unpaidTransport.map((t) => {
+                          {agedAlerts.extra > 0 && <li className="pl-6 text-xs text-slate-500 dark:text-slate-400">+ {agedAlerts.extra} more aged units</li>}
+                          {showGroup && transportAlerts.rows.length > 0 && <li className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Unpaid transport</li>}
+                          {transportAlerts.rows.map((t) => {
                             const v = state.vehicles.find((x) => x.id === t.vehicleId)
                             return (
                               <li key={`tr-${t.id}`} className="flex items-start gap-2">
@@ -149,27 +236,34 @@ export default function Dashboard() {
                               </li>
                             )
                           })}
-                          {(alertFilter === 'All' || alertFilter === 'Receivables') && unpaidReceivables.map((r) => (
+                          {transportAlerts.extra > 0 && <li className="pl-6 text-xs text-slate-500 dark:text-slate-400">+ {transportAlerts.extra} more transport orders</li>}
+                          {showGroup && receivableAlerts.rows.length > 0 && <li className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Receivables</li>}
+                          {receivableAlerts.rows.map((r) => (
                             <li key={`rc-${r.id}`} className="flex items-start gap-2">
                               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
                               <Link to="/finance" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Unpaid {r.kind.toLowerCase()} balance — {r.entityName} ({r.reference}): <Money value={r.total - r.paid} /> outstanding, due {r.dueDate} · {r.status}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Open finance →</span></Link>
                             </li>
                           ))}
-                          {(alertFilter === 'All' || alertFilter === 'Low parts') && lowStockParts.map((p) => (
+                          {receivableAlerts.extra > 0 && <li className="pl-6 text-xs text-slate-500 dark:text-slate-400">+ {receivableAlerts.extra} more receivables</li>}
+                          {showGroup && partsAlerts.rows.length > 0 && <li className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Low parts</li>}
+                          {partsAlerts.rows.map((p) => (
                             <li key={`ps-${p.id}`} className="flex items-start gap-2">
                               <Package className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                              <Link to="/parts" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Open parts →</span></Link>
+                              <Link to={`/parts?receive=1&partId=${encodeURIComponent(p.id)}`} className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Low stock — {p.name} ({p.sku}): {partStock(state.partBatches, p.id)} on hand, minimum {p.minStock}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Receive stock →</span></Link>
                             </li>
                           ))}
-                          {(alertFilter === 'All' || alertFilter === 'Overdue follow-ups') && overdueFollowUps.map((l) => {
+                          {partsAlerts.extra > 0 && <li className="pl-6 text-xs text-slate-500 dark:text-slate-400">+ {partsAlerts.extra} more parts</li>}
+                          {showGroup && followAlerts.rows.length > 0 && <li className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Overdue follow-ups</li>}
+                          {followAlerts.rows.map((l) => {
                             const c = state.customers.find((x) => x.id === l.customerId)
                             return (
                               <li key={`fu-${l.id}`} className="flex items-start gap-2">
                                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                                <Link to="/crm?followUp=overdue" className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Review follow-up →</span></Link>
+                                <Link to={`/crm?lead=${l.id}&followUp=overdue`} className="min-w-0 flex-1 rounded-sm hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-300"><span>Overdue follow-up — {c?.name ?? l.customerId} ({l.stage}), was due {l.followUpDate}.</span><span className="ml-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">Review follow-up →</span></Link>
                               </li>
                             )
                           })}
+                          {followAlerts.extra > 0 && <li className="pl-6 text-xs text-slate-500 dark:text-slate-400">+ {followAlerts.extra} more follow-ups</li>}
                         </ul>
                       </JXCard>
 

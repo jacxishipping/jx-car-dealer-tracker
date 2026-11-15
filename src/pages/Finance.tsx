@@ -1,5 +1,6 @@
 import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {JXButton, JXCard, JXSelect} from '../components/JXUI'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -48,6 +49,12 @@ export default function Finance() {
   const [acctError, setAcctError] = useState('')
   const [acctDone, setAcctDone] = useState('')
 
+  const floored = useMemo(
+    () => state.vehicles
+      .filter((vehicle) => (vehicle.floorplanBalance ?? 0) > 0)
+      .sort((a, b) => (a.curtailmentDate ?? '9999-12-31').localeCompare(b.curtailmentDate ?? '9999-12-31')),
+    [state.vehicles],
+  )
   const cash = totalCash(state)
   const receivablesOut = useMemo(
     () => state.receivables.filter((r) => r.kind === 'Customer').reduce((s, r) => s + (r.total - r.paid), 0),
@@ -158,6 +165,33 @@ export default function Finance() {
         <KpiCard label="Receivables outstanding" value={fmtMoney(receivablesOut)} sub="Customer balances still owed" tone="amber" />
         <KpiCard label="Payables outstanding" value={fmtMoney(payablesOut)} sub="Vendor & carrier balances still owed" tone="rose" />
       </div>
+
+      <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Floored units</h2>
+      {floored.length === 0 ? (
+        <div className="mb-6">
+          <EmptyState kind="first-run" title="No floored units" detail="Vehicles with an open floorplan balance are listed here, with the next curtailment date." />
+        </div>
+      ) : (
+        <div className="mb-6">
+          <TableScrollHint />
+          <div className="overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+            <ResponsiveTable><table className={tableCls}>
+              <thead><tr><th className={thCls}>Stock</th><th className={thCls}>Vehicle</th><th className={thCls}>Status</th><th className={thCls}>Floorplan balance</th><th className={thCls}>Curtailment</th></tr></thead>
+              <tbody>
+                {floored.map((vehicle) => (
+                  <tr key={vehicle.id}>
+                    <td className={tdCls}><Link to={`/inventory/${vehicle.id}`} className="font-mono font-semibold text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300">{vehicle.stockNumber}</Link></td>
+                    <td className={tdCls}>{vehicle.year} {vehicle.make} {vehicle.model}</td>
+                    <td className={tdCls}><StatusChip value={vehicle.status} /></td>
+                    <td className={tdCls}><Money value={vehicle.floorplanBalance ?? 0} /></td>
+                    <td className={tdCls}>{vehicle.curtailmentDate || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></ResponsiveTable>
+          </div>
+        </div>
+      )}
 
       <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Accounts</h2>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

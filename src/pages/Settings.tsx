@@ -1,13 +1,17 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { fmtMoney } from '../store/types'
+import { can } from '../lib/permissions'
 import { Alert, Field, PageHeader } from '../components/ui'
 
 import {JXButton, JXCard, JXSelect, JXSwitch} from '../components/JXUI'
 export default function Settings() {
   const { state, updateSettings, resetDemo, apiMode } = useStore()
+  const canWriteSettings = can(state.currentRole, 'settings.write')
+  const canOpenMcp = state.currentRole === 'Owner' || state.currentRole === 'Admin'
   const [orgName, setOrgName] = useState(state.settings.orgName)
   const [currency, setCurrency] = useState(state.settings.currency)
   const [overhead, setOverhead] = useState(String(state.settings.overheadPerVehicle))
@@ -21,6 +25,7 @@ export default function Settings() {
 
   const saveProfile = () => {
     setSaveError(''); setSaved('')
+    if (!canWriteSettings) { setSaveError('Your role cannot change settings.'); return }
     const oh = Number(overhead)
     const th = Number(targetHold)
     if (!orgName.trim()) { setSaveError('Organisation name cannot be empty.'); return }
@@ -31,12 +36,14 @@ export default function Settings() {
   }
 
   const toggleTheme = (checked: boolean) => {
+    if (!canWriteSettings) { setSaveError('Your role cannot change settings.'); setSaved(''); return }
     const next = checked ? 'dark' : 'light'
     document.documentElement.classList.toggle('dark', checked)
     updateSettings({ theme: next })
   }
 
   const doReset = () => {
+    if (!canWriteSettings) { setSaveError('Your role cannot reset demo data.'); setSaved(''); return }
     resetDemo()
     setConfirmReset(false)
     setResetDone('Demo data reset to the original seed. All changes made since the seed — vehicles, sales, payments, documents, team edits — are gone.')
@@ -49,6 +56,7 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" subtitle={apiMode ? 'Organisation profile, costing policy, theme and connected workspace.' : 'Organisation profile, costing policy, theme and demo-data controls.'} />
+      {!canWriteSettings && <div className="mb-4"><Alert severity="info" title="Settings are read-only" description="Your role does not include settings.write. Saving the profile, changing the theme, and resetting demo data are limited to Owner and Admin." /></div>}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <JXCard title="Organisation profile" kicker="Identity" description="Shown in the sidebar and used across the app."
@@ -70,7 +78,7 @@ export default function Settings() {
                 </span>
               </div>
               <div className="flex justify-end">
-                <JXButton variant="contained" lockWidth={false} onClick={saveProfile} className="w-full sm:w-auto">Save profile</JXButton>
+                <JXButton variant="contained" lockWidth={false} disabled={!canWriteSettings} onClick={saveProfile} className="w-full sm:w-auto">Save profile</JXButton>
               </div>
           </div>
         </JXCard>
@@ -88,7 +96,7 @@ export default function Settings() {
                   All-in cost = purchase price + auction fees + transport + direct expenses + FIFO parts cost + overhead per vehicle.
                 </p>
                 <div className="flex justify-end">
-                  <JXButton variant="contained" lockWidth={false} onClick={saveProfile} className="w-full sm:w-auto">Save costing policy</JXButton>
+                  <JXButton variant="contained" lockWidth={false} disabled={!canWriteSettings} onClick={saveProfile} className="w-full sm:w-auto">Save costing policy</JXButton>
                 </div>
               </div>
             </JXCard>
@@ -109,10 +117,10 @@ export default function Settings() {
               {resetDone && <div className="mt-3"><Alert severity="success" title={resetDone} /></div>}
               <div className="mt-4 flex flex-wrap gap-2">
                 {!confirmReset ? (
-              <JXButton variant="outlined" color="error" lockWidth={false} onClick={() => setConfirmReset(true)}>Reset demo data…</JXButton>
+              <JXButton variant="outlined" color="error" lockWidth={false} disabled={!canWriteSettings} onClick={() => setConfirmReset(true)}>Reset demo data…</JXButton>
                 ) : (
                   <>
-                    <JXButton variant="contained" color="error" lockWidth={false} onClick={doReset}>Yes, reset everything</JXButton>
+                    <JXButton variant="contained" color="error" lockWidth={false} disabled={!canWriteSettings} onClick={doReset}>Yes, reset everything</JXButton>
                     <JXButton variant="outlined" lockWidth={false} onClick={() => setConfirmReset(false)}>Cancel</JXButton>
                   </>
                 )}
@@ -141,6 +149,12 @@ export default function Settings() {
               <li><strong className="text-slate-900 dark:text-white">Money movement:</strong> every balance change goes through the store (recordPayment, transfer, recordExpense, finalizeSale) and writes a journal entry. Balances are always computed from opening balance + signed transactions, never stored.</li>
             </ul>
           </JXCard>
+          {canOpenMcp && (
+            <JXCard title="MCP integration" kicker="Connections" description="Owner and Admin can open the MCP tools for this dealership."
+              className="mt-6 !rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+              <Link to="/mcp" className="text-sm font-semibold text-indigo-600 underline underline-offset-2 dark:text-indigo-400">Open MCP integration</Link>
+            </JXCard>
+          )}
         </>
         )
 }

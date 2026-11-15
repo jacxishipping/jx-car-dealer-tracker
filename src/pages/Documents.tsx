@@ -98,7 +98,21 @@ export default function Documents() {
       </div>
 
       {filtered.length === 0
-        ? <EmptyState title="No documents match" detail="Adjust the type / entity filters or add a document record." />
+        ? (state.documents.length === 0 ? (
+            <EmptyState
+              kind="first-run"
+              title="No documents yet"
+              detail="Add a document record to track titles, invoices, and contracts. This build stores metadata only."
+              action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => { setShowAdd(true); setError(''); setDone('') }}>Add document</JXButton>}
+            />
+          ) : (
+            <EmptyState
+              kind="filtered"
+              title="No documents match"
+              detail="Try another type, entity, or search."
+              action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setTypeFilter('all'); setEntityFilter('all'); setQuery('') }}>Clear filters</JXButton>}
+            />
+          ))
         : (
           <>
               <TableScrollHint />

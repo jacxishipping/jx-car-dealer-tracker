@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import {
   JXAlert as LibraryAlert,
   JXAvatar as LibraryAvatar,
@@ -20,20 +20,25 @@ import {
 type Classed<T> = T & { className?: string }
 const mergeClass = (base: string, extra?: string) => `${base}${extra ? ` ${extra}` : ''}`
 
+/** Library defaults maxLength to 64; omitters need a high practical cap. */
+const DEFAULT_TEXT_MAX = 10_000
+
 export function JXButton(props: ComponentProps<typeof LibraryButton>) {
   // Library JXButton hardcodes type="button", so type="submit" never reaches the DOM.
   // When callers ask for submit, requestSubmit on click so forms still work.
-  const { className, lockWidth, variant = 'contained', color = 'primary', type = 'button', onClick, ...rest } = props
+  const { className, lockWidth, variant = 'contained', color = 'primary', size = 'md', type = 'button', onClick, loadingLabel, ...rest } = props
   return (
     <LibraryButton
       {...rest}
       type={type}
       variant={variant}
       color={color}
+      size={size}
       lockWidth={lockWidth ?? false}
       spring={false}
       halo={false}
-      className={mergeClass(`jx-app-button jx-app-button--${variant} jx-app-button--${color}`, className)}
+      loadingLabel={loadingLabel ?? 'Please wait…'}
+      className={mergeClass(`jx-app-button jx-app-button--${variant} jx-app-button--${color} jx-app-button--${size}`, className)}
       onClick={(event) => {
         onClick?.(event)
         if (event.defaultPrevented || type !== 'submit') return
@@ -55,18 +60,40 @@ export function JXButtonGroup(props: ComponentProps<typeof LibraryButtonGroup>) 
 }
 
 export function JXCard(props: ComponentProps<typeof LibraryCard>) {
-  const { className, ...rest } = props
-  return <LibraryCard {...rest} spotlight={false} hoverLift={false} className={mergeClass('jx-app-card', className)} />
+  const { className, title, kicker, description, children, ...rest } = props
+  // Library does `children || <header>`, so title/kicker/description are dropped
+  // whenever children exist. Always compose the header ourselves.
+  const body: ReactNode = (
+    <>
+      {(title || kicker || description) && (
+        <div className="jx-app-card__header mb-3">
+          {kicker && <p className="text-xs font-mono font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">{kicker}</p>}
+          {title && <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>}
+          {description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+        </div>
+      )}
+      {children}
+    </>
+  )
+  return <LibraryCard {...rest} spotlight={false} hoverLift={false} className={mergeClass('jx-app-card', className)}>{body}</LibraryCard>
 }
 
 export function JXAlert(props: ComponentProps<typeof LibraryAlert>) {
-  const { className, actionLabel, technicalDetails, ...rest } = props
-  return <LibraryAlert {...rest} actionLabel={actionLabel ?? ''} technicalDetails={technicalDetails ?? ''} className={mergeClass('jx-app-alert', className)} />
+  const { className, actionLabel, technicalDetails, description, ...rest } = props
+  return (
+    <LibraryAlert
+      {...rest}
+      description={description ?? ''}
+      actionLabel={actionLabel ?? ''}
+      technicalDetails={technicalDetails ?? ''}
+      className={mergeClass('jx-app-alert', className)}
+    />
+  )
 }
 
 export function JXChip(props: ComponentProps<typeof LibraryChip>) {
-  const { className, ...rest } = props
-  return <LibraryChip {...rest} className={mergeClass('jx-app-chip', className)} />
+  const { className, tone = 'neutral', ...rest } = props
+  return <LibraryChip {...rest} tone={tone} className={mergeClass(`jx-app-chip jx-app-chip--${tone}`, className)} />
 }
 
 export function JXSelect(props: ComponentProps<typeof LibrarySelect>) {
@@ -75,13 +102,22 @@ export function JXSelect(props: ComponentProps<typeof LibrarySelect>) {
 }
 
 export function JXTextField(props: ComponentProps<typeof LibraryTextField>) {
-  const { className, ...rest } = props
-  return <LibraryTextField {...rest} clearable={false} showCharacterCounter={false} showEntropyMeter={false} className={mergeClass('jx-app-text-field', className)} />
+  const { className, maxLength, ...rest } = props
+  return (
+    <LibraryTextField
+      {...rest}
+      maxLength={maxLength ?? DEFAULT_TEXT_MAX}
+      clearable={false}
+      showCharacterCounter={false}
+      showEntropyMeter={false}
+      className={mergeClass('jx-app-text-field', className)}
+    />
+  )
 }
 
 export function JXSwitch(props: ComponentProps<typeof LibrarySwitch>) {
-  const { className, ...rest } = props
-  return <LibrarySwitch {...rest} trackIcons={false} className={mergeClass('jx-app-switch', className)} />
+  const { className, cardMode, ...rest } = props
+  return <LibrarySwitch {...rest} cardMode={cardMode ?? false} trackIcons={false} className={mergeClass('jx-app-switch', className)} />
 }
 
 export function JXAvatar(props: ComponentProps<typeof LibraryAvatar>) {
@@ -115,8 +151,15 @@ export function JXNumberField(props: ComponentProps<typeof LibraryNumberField>) 
 }
 
 export function JXTextareaAutosize(props: ComponentProps<typeof LibraryTextarea>) {
-  const { className, ...rest } = props
-  return <LibraryTextarea {...rest} className={mergeClass('jx-app-textarea', className)} />
+  const { className, showToolbar, maxLength, ...rest } = props
+  return (
+    <LibraryTextarea
+      {...rest}
+      showToolbar={showToolbar ?? false}
+      maxLength={maxLength ?? DEFAULT_TEXT_MAX}
+      className={mergeClass('jx-app-textarea', className)}
+    />
+  )
 }
 
 export type JXButtonProps = Classed<ComponentProps<typeof LibraryButton>>

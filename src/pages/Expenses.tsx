@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
+import { can } from '../lib/permissions'
 import { useStore } from '../store/store'
 import { EXPENSE_CATEGORIES, fmtMoney, type Expense, type ExpenseCategory } from '../store/types'
 import {
@@ -18,10 +19,11 @@ const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export default function Expenses() {
   const { state, recordExpense } = useStore()
+  const canExpense = can(state.currentRole, 'expense.create')
   const [searchParams, setSearchParams] = useSearchParams()
   const openFromQuery = searchParams.get('new') === '1'
   const [openLocal, setOpenLocal] = useState(false)
-  const open = openLocal || openFromQuery
+  const open = canExpense && (openLocal || openFromQuery)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const closeModal = () => {
@@ -61,9 +63,10 @@ export default function Expenses() {
   const pending = sum(state.expenses.filter((e) => e.status === 'Pending'))
 
   // ---- Record expense form ----
+  const linkedVehicleId = searchParams.get('vehicleId') ?? ''
   const [f, setF] = useState({
     description: '', amount: '', category: 'Mechanical repairs' as ExpenseCategory,
-    date: today(), vendor: '', vehicleId: '', kind: 'Direct' as 'Direct' | 'Overhead',
+    date: today(), vendor: '', vehicleId: state.vehicles.some((v) => v.id === linkedVehicleId) ? linkedVehicleId : '', kind: 'Direct' as 'Direct' | 'Overhead',
     paymentMethod: 'Bank transfer', status: 'Paid' as 'Paid' | 'Pending',
     invoiceRef: '', notes: '',
   })
@@ -108,9 +111,11 @@ export default function Expenses() {
               Vendor: e.vendor, Amount: e.amount, PaymentMethod: e.paymentMethod,
               Status: e.status, InvoiceRef: e.invoiceRef, Notes: e.notes,
             }))} />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
-              <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record expense</span>
-            </JXButton>
+            {canExpense && (
+              <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
+                <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record expense</span>
+              </JXButton>
+            )}
           </>
         }
       />
@@ -147,7 +152,21 @@ export default function Expenses() {
         </p>
 
         {filtered.length === 0 ? (
-        <EmptyState title="No expenses match" detail="Adjust the filters, or record an expense." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpenLocal(true)}>Record expense</JXButton>} />
+          state.expenses.length === 0 ? (
+            <EmptyState
+              kind="first-run"
+              title="No expenses yet"
+              detail={canExpense ? 'Record a repair, fee, or overhead cost to start the ledger.' : `Signed in as ${state.currentRole}. Recording expenses is available to Owner, Admin, Manager, and Accountant.`}
+              action={canExpense ? <JXButton variant="contained" size="sm" lockWidth={false} onClick={() => { setError(null); setOpenLocal(true) }}>Record expense</JXButton> : undefined}
+            />
+          ) : (
+            <EmptyState
+              kind="filtered"
+              title="No expenses match"
+              detail="Try another category, vehicle, or search."
+              action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setCatFilter('All'); setKindFilter('All'); setVehicleFilter('All'); setSearch('') }}>Clear filters</JXButton>}
+            />
+          )
         ) : (
         <>
           <TableScrollHint />

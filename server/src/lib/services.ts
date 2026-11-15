@@ -742,6 +742,7 @@ export async function finalizeSaleTx(
   orgId: string,
   dealId: string,
   user: AuthedUser,
+  opts: { priceOverride?: boolean; role?: string } = {},
 ): Promise<{ sale: Record<string, unknown> }> {
   const dealRes = await client.query(
     `SELECT * FROM dealer.deals WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
@@ -767,12 +768,34 @@ export async function finalizeSaleTx(
       `Vehicle ${vehicle.stock_number as string} is ${vehicle.status as string} — only Available or Reserved vehicles can be sold.`,
     );
   }
+  const titleStatus = String(vehicle.title_status ?? '');
+  if (titleStatus === 'Missing' || titleStatus === 'Lien') {
+    throw badRequest(
+      `Vehicle ${vehicle.stock_number as string} title status is ${titleStatus}. Resolve the title before finalising.`,
+    );
+  }
   const customerRes = await client.query(
     `SELECT * FROM dealer.customers WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
     [deal.customer_id, orgId],
   );
   if (customerRes.rows.length === 0) throw notFound('Customer not found');
   const customer = customerRes.rows[0] as Record<string, unknown>;
+
+  const idDocs = await client.query(
+    `SELECT id, type, expires_at FROM dealer.documents
+     WHERE organization_id = $1 AND entity_type = 'Customer' AND entity_id = $2 AND deleted_at IS NULL`,
+    [orgId, customer.id],
+  );
+  const todayIso = today();
+  const hasValidId = idDocs.rows.some((row) => {
+    const type = String(row.type ?? '').toLowerCase();
+    if (!type.includes('id') && !type.includes('license') && !type.includes('licence')) return false;
+    const expires = row.expires_at ? String(row.expires_at).slice(0, 10) : null;
+    return !expires || expires >= todayIso;
+  });
+  if (!hasValidId) {
+    throw badRequest(`Customer ${customer.name as string} has no valid ID / license document on file.`);
+  }
 
   const settings = await getOrgSettings(client, orgId);
   const totalCost = await vehicleAllInCostDb(
@@ -796,8 +819,24 @@ export async function finalizeSaleTx(
     totalCost,
   );
   const netSelling = money(num(deal.selling_price) - num(deal.discount));
+  const minPrice = num(vehicle.min_price);
+  const belowMin = netSelling < minPrice;
+  const belowBreakEven = netSelling < profit.breakEven;
+  if (belowMin || belowBreakEven) {
+    const role = opts.role ?? '';
+    const canOverride = opts.priceOverride === true && (role === 'Owner' || role === 'Admin');
+    if (!canOverride) {
+      const why = [
+        belowMin ? `below minimum ${minPrice}` : '',
+        belowBreakEven ? `below break-even ${profit.breakEven}` : '',
+      ].filter(Boolean).join(' and ');
+      throw badRequest(
+        `Net price ${netSelling} is ${why}. Owner/Admin must confirm a price override to finalise.`,
+      );
+    }
+  }
   const saleRef = await nextRef(client, orgId, 'SALE');
-  const date = today();
+  const date = todayIso;
 
   const saleRes = await client.query(
     `INSERT INTO dealer.sales

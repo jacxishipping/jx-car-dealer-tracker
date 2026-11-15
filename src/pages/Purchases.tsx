@@ -7,6 +7,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
+import { useVinDecode } from '../lib/vinDecode'
+import { can } from '../lib/permissions'
 import { useStore } from '../store/store'
 import { fmtMoney, type Purchase } from '../store/types'
 import {
@@ -22,6 +24,7 @@ const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export default function Purchases() {
   const { state, recordPurchase } = useStore()
+  const canPurchase = can(state.currentRole, 'purchase.create')
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -77,6 +80,15 @@ export default function Purchases() {
   }))
   const setText = (k: keyof typeof f, value: string) => setF((prev) => ({ ...prev, [k]: value }))
   const setAmount = (k: 'price' | 'buyerFees' | 'auctionFees' | 'taxes' | 'transportEstimate' | 'askingPrice' | 'minPrice' | 'mileage' | 'year', value: number) => setText(k, String(value))
+  const vinHint = useVinDecode(f.vin, (decoded) => {
+    setF((current) => ({
+      ...current,
+      ...(decoded.year ? { year: decoded.year } : {}),
+      ...(decoded.make ? { make: decoded.make } : {}),
+      ...(decoded.model ? { model: decoded.model } : {}),
+      ...(decoded.trim ? { trim: decoded.trim } : {}),
+    }))
+  })
 
   const submit = () => {
     setError(null)
@@ -158,6 +170,13 @@ export default function Purchases() {
   }
   const advancePurchaseStep = () => { if (validatePurchaseStep()) setStep((current) => Math.min(purchaseSteps.length - 1, current + 1)) }
 
+  if (newPage && !canPurchase) return (
+    <>
+      <PageHeader title="Record purchase" subtitle="Acquisition recording follows your role." actions={<JXButton variant="outlined" size="sm" onClick={closePurchasePage}>Back to purchases</JXButton>} />
+      <Alert severity="info" title="Purchases are read-only for your role" description={`You are signed in as ${state.currentRole}. Recording a purchase is available to Owner, Admin, and Manager.`} />
+    </>
+  )
+
   if (newPage) return (
     <WorkflowPage title={`Record purchase · ${nextStock}`} subtitle="Add the acquisition and its new inventory vehicle in four guided steps." steps={purchaseSteps} step={step} onStepChange={setStep} onCancel={closePurchasePage} onBack={() => setStep((current) => Math.max(0, current - 1))} onNext={advancePurchaseStep} onSubmit={submit} submitLabel="Record purchase" error={error}>
       {step === 0 && <section aria-labelledby="purchase-source-title"><h2 id="purchase-source-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Seller and acquisition</h2><div className="grid gap-4 sm:grid-cols-2">
@@ -167,7 +186,7 @@ export default function Purchases() {
         <Field label="Purchase date"><input type="date" className={inputCls} value={f.purchaseDate} onChange={(event) => setText('purchaseDate', event.target.value)} /></Field>
       </div></section>}
       {step === 1 && <section aria-labelledby="purchase-vehicle-title"><h2 id="purchase-vehicle-title" className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">Vehicle identity</h2><p className="mb-4 text-sm text-slate-500 dark:text-slate-400">A unique VIN is required to add this vehicle to inventory.</p><div className="grid gap-4 sm:grid-cols-2">
-        <Field label="VIN *" hint={`${f.vin.trim().length}/17 characters`}><JXTextField label="" className="jx-text-field" value={f.vin} onChange={(value) => setText('vin', value.toUpperCase())} placeholder="17-character VIN" maxLength={17} /></Field>
+        <Field label="VIN *" hint={[vinHint, `${f.vin.trim().length}/17 characters. Year, make, and model stay editable after a lookup.`].filter(Boolean).join(' · ')}><JXTextField label="" className="jx-text-field" value={f.vin} onChange={(value) => setText('vin', value.toUpperCase())} placeholder="17-character VIN" maxLength={17} /></Field>
         <Field label="Year"><JXNumberField label="" unit="" value={Number(f.year)} min={1886} max={CURRENT_YEAR + 2} step={1} onChange={(value) => setAmount('year', value)} /></Field>
         <Field label="Make *"><JXTextField label="" className="jx-text-field" value={f.make} onChange={(value) => setText('make', value)} placeholder="e.g. Honda" /></Field>
         <Field label="Model *"><JXTextField label="" className="jx-text-field" value={f.model} onChange={(value) => setText('model', value)} placeholder="e.g. Accord" /></Field>
@@ -200,9 +219,11 @@ export default function Purchases() {
                 PaymentMethod: p.paymentMethod, PaymentStatus: p.paymentStatus,
               }
             })} />
-            <JXButton variant="contained" size="sm" onClick={openPurchasePage}>
-              <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record purchase</span>
-            </JXButton>
+            {canPurchase && (
+              <JXButton variant="contained" size="sm" onClick={openPurchasePage}>
+                <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record purchase</span>
+              </JXButton>
+            )}
           </>
         }
       />
@@ -221,7 +242,21 @@ export default function Purchases() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No purchases found" detail="Adjust the search, or record a purchase to add the first acquisition." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={openPurchasePage}>Record purchase</JXButton>} />
+        state.purchases.length === 0 ? (
+          <EmptyState
+            kind="first-run"
+            title="No purchases yet"
+            detail={canPurchase ? 'Record a purchase to create the vehicle, payment, and journal entry together.' : `Signed in as ${state.currentRole}. Recording purchases is available to Owner, Admin, and Manager.`}
+            action={canPurchase ? <JXButton variant="contained" size="sm" lockWidth={false} onClick={openPurchasePage}>Record purchase</JXButton> : undefined}
+          />
+        ) : (
+          <EmptyState
+            kind="filtered"
+            title="No purchases match"
+            detail="Try a different search."
+            action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => setSearch('')}>Clear search</JXButton>}
+          />
+        )
       ) : (
         <>
           <TableScrollHint />

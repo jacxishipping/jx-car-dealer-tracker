@@ -199,6 +199,10 @@ export function updateVehicleStatus(vehicleId: string, status: Vehicle['status']
   return patch<Vehicle>(`/api/vehicles/${vehicleId}`, { status })
 }
 
+export function updateVehicle(vehicleId: string, patchBody: Partial<Omit<Vehicle, 'id' | 'createdAt'>>): Promise<Vehicle> {
+  return patch<Vehicle>(`/api/vehicles/${vehicleId}`, patchBody)
+}
+
 export function addTransport(t: Omit<TransportOrder, 'id'>): Promise<TransportOrder> {
   return post<TransportOrder>('/api/transport', t)
 }
@@ -254,6 +258,13 @@ export function moveLead(leadId: string, stage: LeadStage): Promise<Lead> {
   return patch<Lead>(`/api/leads/${leadId}`, { stage })
 }
 
+export function updateLead(
+  leadId: string,
+  patchBody: Partial<Pick<Lead, 'stage' | 'followUpDate' | 'notes'>>,
+): Promise<Lead> {
+  return patch<Lead>(`/api/leads/${leadId}`, patchBody)
+}
+
 export function addOffer(vehicleId: string, customerId: string, amount: number): Promise<{ id: string }> {
   const date = new Date().toISOString().slice(0, 10)
   return post<{ id: string }>('/api/offers', { vehicleId, customerId, amount, date })
@@ -265,8 +276,8 @@ export function createDeal(
   return post<Deal>('/api/deals', d)
 }
 
-export function finalizeSale(dealId: string): Promise<{ saleRef?: string; id?: string }> {
-  return post<{ saleRef?: string; id?: string }>(`/api/deals/${dealId}/finalize`, {})
+export function finalizeSale(dealId: string, opts?: { priceOverride?: boolean }): Promise<{ saleRef?: string; id?: string }> {
+  return post<{ saleRef?: string; id?: string }>(`/api/deals/${dealId}/finalize`, { priceOverride: opts?.priceOverride === true })
 }
 
 export function recordPayment(

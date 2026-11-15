@@ -1,19 +1,43 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 import { useStore } from '../store/store'
 import { VEHICLE_STATUSES, fmtMoney } from '../store/types'
 import type { VehicleStatus } from '../store/types'
 import { daysInStock, vehicleAllInCost, vehicleDirectExpenses, vehiclePartsCost } from '../store/engine'
-import { EmptyState, Money, PageHeader, StatusChip } from '../components/ui'
+import { Alert, EmptyState, Money, PageHeader, StatusChip } from '../components/ui'
 
-import {JXCard, JXProgress, JXSelect, JXTimeline} from '../components/JXUI'
-function Section({ title, kicker, children }: { title: string; kicker?: string; children: React.ReactNode }) {
+import { JXButton, JXCard, JXProgress, JXSelect, JXTimeline } from '../components/JXUI'
+
+const SECTION_LINKS = [
+  { id: 'pipeline', label: 'Pipeline' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'specs', label: 'Specs' },
+  { id: 'acquisition', label: 'Acquisition' },
+  { id: 'transport', label: 'Transport' },
+  { id: 'recon', label: 'Recon' },
+  { id: 'parts', label: 'Parts' },
+  { id: 'expenses', label: 'Expenses' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'offers', label: 'Offers' },
+  { id: 'sales', label: 'Sales' },
+  { id: 'financials', label: 'Financials' },
+  { id: 'timeline', label: 'Timeline' },
+]
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function Section({ id, title, kicker, children }: { id: string; title: string; kicker?: string; children: React.ReactNode }) {
   return (
+    <div id={id} className="scroll-mt-36">
       <JXCard title={title} kicker={kicker} className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
         {children}
       </JXCard>
-      )
+    </div>
+  )
 }
 
       function Row({label, children}: {label: string; children: React.ReactNode }) {
@@ -33,6 +57,8 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
   const {id} = useParams<{ id: string }>()
         const {state, updateVehicleStatus} = useStore()
         const navigate = useNavigate()
+  const [statusAlert, setStatusAlert] = useState<string | null>(null)
+  const [statusNonce, setStatusNonce] = useState(0)
   const vehicle = state.vehicles.find((v) => v.id === id)
 
         if (!vehicle) {
@@ -42,7 +68,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           <EmptyState
             title="No vehicle with this ID"
             detail="It may have been removed, or the link is wrong. Go back to the inventory list to pick a vehicle."
-            action={<Link to="/inventory" className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"><ArrowLeft className="h-4 w-4" />Back to inventory</Link>}
+            action={<JXButton variant="contained" size="sm" onClick={() => navigate('/inventory')} startIcon={<ArrowLeft className="h-4 w-4" />}>Back to inventory</JXButton>}
           />
         </>
         )
@@ -77,9 +103,9 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
             title={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
             subtitle={`${vehicle.stockNumber} · VIN ${vehicle.vin} · ${daysInStock(vehicle)} days in stock`}
             actions={
-                <button type="button" onClick={() => navigate('/inventory')} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[var(--radius-control)] border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-                  <ArrowLeft className="h-4 w-4" />Back to inventory
-                </button>
+              <JXButton variant="outlined" size="sm" onClick={() => navigate('/inventory')} startIcon={<ArrowLeft className="h-4 w-4" />}>
+                Back to inventory
+              </JXButton>
         }
       />
 
@@ -87,11 +113,20 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                   <StatusChip value={vehicle.status} />
                   <div className="w-full sm:w-56">
                     <JXSelect
+                      key={`${vehicle.status}-${statusNonce}`}
                       label="Change status"
                       className="jx-select-field jx-field-select"
                       options={VEHICLE_STATUSES.map((s) => ({ id: s, label: s }))}
                       value={vehicle.status}
-                      onChange={(val) => updateVehicleStatus(vehicle.id, val as VehicleStatus)}
+                      onChange={(val) => {
+                        if (val === 'Sold' && sales.length === 0) {
+                          setStatusAlert('This vehicle has no sale on record. Record the sale before marking it Sold.')
+                          setStatusNonce((n) => n + 1)
+                          return
+                        }
+                        setStatusAlert(null)
+                        updateVehicleStatus(vehicle.id, val as VehicleStatus)
+                      }}
                     />
                   </div>
                   <div className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
@@ -101,10 +136,37 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     <span className="mx-2 text-slate-400">·</span>
                     All-in <Money value={allIn} />
                   </div>
+                  <nav aria-label="On this page" className="flex w-full gap-2 overflow-x-auto pb-1">
+                    {SECTION_LINKS.map((section) => (
+                      <a
+                        key={section.id}
+                        href={`#${section.id}`}
+                        onClick={(event) => { event.preventDefault(); scrollToSection(section.id) }}
+                        className="shrink-0 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:text-indigo-300 dark:hover:bg-slate-800"
+                      >
+                        {section.label}
+                      </a>
+                    ))}
+                  </nav>
+                  <div className="flex w-full flex-wrap gap-2">
+                    <JXButton size="sm" variant="contained" onClick={() => navigate(`/sales/new?vehicleId=${vehicle.id}`)}>Start deal</JXButton>
+                    <JXButton size="sm" variant="outlined" onClick={() => navigate(`/expenses?new=1&vehicleId=${vehicle.id}`)}>Add expense</JXButton>
+                    <JXButton size="sm" variant="outlined" onClick={() => navigate(`/transportation?new=1&vehicleId=${vehicle.id}`)}>Book transport</JXButton>
+                    <JXButton size="sm" variant="outlined" onClick={() => navigate(`/reconditioning/new?vehicleId=${vehicle.id}`)}>Open recon</JXButton>
+                    <JXButton size="sm" variant="outlined" onClick={() => window.print()}>Print window sticker</JXButton>
+                  </div>
+                  {(vehicle.floorplanBalance != null || vehicle.curtailmentDate) && (
+                    <p className="w-full text-sm text-slate-600 dark:text-slate-300">
+                      {vehicle.floorplanBalance != null && <>Floorplan balance <Money value={vehicle.floorplanBalance} /></>}
+                      {vehicle.floorplanBalance != null && vehicle.curtailmentDate ? <span className="mx-2 text-slate-400">·</span> : null}
+                      {vehicle.curtailmentDate && <>Curtailment {vehicle.curtailmentDate}</>}
+                    </p>
+                  )}
+                  {statusAlert && <div className="w-full" role="alert"><Alert severity="error" title="Cannot mark Sold" description={statusAlert} /></div>}
                   {vehicle.notes && <p className="w-full text-sm text-slate-500 dark:text-slate-400">{vehicle.notes}</p>}
                 </div>
 
-                <Section title="Vehicle pipeline" kicker="Lifecycle progress">
+                <Section id="pipeline" title="Vehicle pipeline" kicker="Lifecycle progress">
                   <JXProgress
                     value={pipelineProgress}
                     label={pipelineIndex >= 0
@@ -119,7 +181,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                 </Section>
 
                 <div className="grid gap-5 lg:grid-cols-2">
-                  <Section title="Overview" kicker={vehicle.stockNumber}>
+                  <Section id="overview" title="Overview" kicker={vehicle.stockNumber}>
                     <Row label="Stock number">{vehicle.stockNumber}</Row>
                     <Row label="VIN">{vehicle.vin}</Row>
                     <Row label="Year / Make / Model">{vehicle.year} {vehicle.make} {vehicle.model}</Row>
@@ -131,7 +193,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     <Row label="Photos">{vehicle.photos.length > 0 ? vehicle.photos.join(', ') : 'None'}</Row>
                   </Section>
 
-                  <Section title="Specifications" kicker="Specs">
+                  <Section id="specs" title="Specifications" kicker="Specs">
                     <Row label="Exterior color">{vehicle.extColor || '—'}</Row>
                     <Row label="Interior color">{vehicle.intColor || '—'}</Row>
                     <Row label="Mileage">{vehicle.mileage.toLocaleString('en-US')} miles</Row>
@@ -142,7 +204,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     <Row label="Body type">{vehicle.bodyType || '—'}</Row>
                   </Section>
 
-                  <Section title="Acquisition" kicker={purchase ? purchase.ref : 'No purchase record'}>
+                  <Section id="acquisition" title="Acquisition" kicker={purchase ? purchase.ref : 'No purchase record'}>
                     {purchase ? (
                       <>
                         <Row label="Seller">{purchase.seller}</Row>
@@ -162,7 +224,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     )}
                   </Section>
 
-                  <Section title="Transport history" kicker={`${transports.length} order${transports.length === 1 ? '' : 's'}`}>
+                  <Section id="transport" title="Transport history" kicker={`${transports.length} order${transports.length === 1 ? '' : 's'}`}>
                     {transports.length === 0 ? <ListEmpty text="No transport orders for this vehicle." /> : (
                       <ul className="space-y-3">
                         {transports.map((t) => (
@@ -183,7 +245,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     )}
                   </Section>
 
-                  <Section title="Reconditioning jobs" kicker={`${reconJobs.length} job${reconJobs.length === 1 ? '' : 's'}`}>
+                  <Section id="recon" title="Reconditioning jobs" kicker={`${reconJobs.length} job${reconJobs.length === 1 ? '' : 's'}`}>
                     {reconJobs.length === 0 ? <ListEmpty text="No recon jobs for this vehicle." /> : (
                       <ul className="space-y-2 text-sm">
                         {reconJobs.map((j) => (
@@ -196,7 +258,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     )}
                   </Section>
 
-                  <Section title="Parts allocations (FIFO)" kicker={`${allocations.length} allocation${allocations.length === 1 ? '' : 's'}`}>
+                  <Section id="parts" title="Parts allocations (FIFO)" kicker={`${allocations.length} allocation${allocations.length === 1 ? '' : 's'}`}>
                     {allocations.length === 0 ? <ListEmpty text="No parts allocated to this vehicle." /> : (
                       <ul className="space-y-2 text-sm">
                         {allocations.map((a) => (
@@ -213,7 +275,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                     <p className="mt-2 text-sm text-slate-500">Total FIFO parts cost: <Money value={partsCost} className="font-semibold text-slate-900 dark:text-white" /></p>
                   </Section>
 
-                  <Section title="Expenses" kicker={`${expenses.length} record${expenses.length === 1 ? '' : 's'}`}>
+                  <Section id="expenses" title="Expenses" kicker={`${expenses.length} record${expenses.length === 1 ? '' : 's'}`}>
                     {expenses.length === 0 ? <ListEmpty text="No expenses linked to this vehicle." /> : (
             <ul className="space-y-2 text-sm">
               {expenses.map((e) => (
@@ -227,7 +289,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Direct expenses total: <Money value={directExpenses} className="font-semibold text-slate-900 dark:text-white" /></p>
         </Section>
 
-        <Section title="Documents" kicker={`${docs.length} file${docs.length === 1 ? '' : 's'}`}>
+        <Section id="documents" title="Documents" kicker={`${docs.length} file${docs.length === 1 ? '' : 's'}`}>
           {docs.length === 0 ? <ListEmpty text="No documents attached to this vehicle." /> : (
             <ul className="space-y-2 text-sm">
               {docs.map((d) => (
@@ -240,7 +302,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           )}
         </Section>
 
-        <Section title="Inquiries & offers" kicker={`${offers.length} offer${offers.length === 1 ? '' : 's'}`}>
+        <Section id="offers" title="Inquiries & offers" kicker={`${offers.length} offer${offers.length === 1 ? '' : 's'}`}>
           {offers.length === 0 ? <ListEmpty text="No offers on this vehicle." /> : (
             <ul className="space-y-2 text-sm">
               {offers.map((o) => (
@@ -266,7 +328,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           )}
         </Section>
 
-        <Section title="Sales history" kicker={`${sales.length} sale${sales.length === 1 ? '' : 's'}`}>
+        <Section id="sales" title="Sales history" kicker={`${sales.length} sale${sales.length === 1 ? '' : 's'}`}>
           {sales.length === 0 ? <ListEmpty text={vehicle.status === 'Sold' ? 'Vehicle is marked Sold but no sale record exists yet.' : 'Not sold yet.'} /> : (
             <ul className="space-y-2 text-sm">
               {sales.map((s) => (
@@ -282,7 +344,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           )}
         </Section>
 
-        <Section title="Financial breakdown" kicker="All-in cost">
+        <Section id="financials" title="Financial breakdown" kicker="All-in cost">
           <Row label="Purchase price"><Money value={vehicle.purchasePrice} /></Row>
           <Row label="Auction fees"><Money value={vehicle.auctionFees} /></Row>
           <Row label="Transport cost"><Money value={vehicle.transportCost} /></Row>
@@ -294,9 +356,11 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           <Row label="Minimum price"><Money value={vehicle.minPrice} /></Row>
           <Row label="Projected profit at asking"><Money value={projectedProfit} className={projectedProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} /></Row>
           <Row label="Projected profit at minimum"><Money value={projectedMinProfit} className={projectedMinProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} /></Row>
+          {vehicle.floorplanBalance != null && <Row label="Floorplan balance"><Money value={vehicle.floorplanBalance} /></Row>}
+          {vehicle.curtailmentDate && <Row label="Curtailment date">{vehicle.curtailmentDate}</Row>}
         </Section>
 
-        <Section title="Timeline" kicker={`${auditEvents.length} event${auditEvents.length === 1 ? '' : 's'}`}>
+        <Section id="timeline" title="Timeline" kicker={`${auditEvents.length} event${auditEvents.length === 1 ? '' : 's'}`}>
           {auditEvents.length === 0 ? <ListEmpty text="No audit events recorded for this vehicle." /> : (
             <JXTimeline events={[...auditEvents].reverse().map((a, index) => ({
               id: a.id,
@@ -308,6 +372,22 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
           )}
         </Section>
       </div>
+      <style>{`@media screen { .jx-window-sticker { display: none; } }
+@media print {
+  body * { visibility: hidden !important; }
+  .jx-window-sticker, .jx-window-sticker * { visibility: visible !important; color: #111 !important; }
+  .jx-window-sticker { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 24px; background: #fff !important; }
+}`}</style>
+      <section className="jx-window-sticker" aria-label="Window sticker">
+        <p style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{state.settings.orgName}</p>
+        <h1 style={{ fontSize: 32, margin: '8px 0' }}>{vehicle.year} {vehicle.make} {vehicle.model}</h1>
+        {vehicle.trim && <p style={{ fontSize: 18 }}>{vehicle.trim}</p>}
+        <p style={{ fontSize: 40, fontWeight: 700, margin: '16px 0' }}>{fmtMoney(vehicle.askingPrice)}</p>
+        <p>Stock {vehicle.stockNumber} · VIN {vehicle.vin}</p>
+        <p>{vehicle.mileage.toLocaleString('en-US')} miles · {vehicle.extColor || '—'} / {vehicle.intColor || '—'}</p>
+        <p>{[vehicle.engine, vehicle.transmission, vehicle.drivetrain, vehicle.fuel].filter(Boolean).join(' · ')}</p>
+        <p>{vehicle.bodyType} · {vehicle.condition} · Title {vehicle.titleStatus}</p>
+      </section>
     </>
   )
 }

@@ -41,6 +41,10 @@ export interface Vehicle {
   transportCost: number
   askingPrice: number
   minPrice: number
+  /** Outstanding floorplan advance on this unit; 0 when not floored. */
+  floorplanBalance?: number
+  /** ISO date when the next curtailment/paydown is due. */
+  curtailmentDate?: string
   photos: string[] // placeholder labels, e.g. "front.jpg"
   notes: string
   createdAt: string
@@ -325,6 +329,8 @@ export interface NotificationItem {
   kind: 'alert' | 'info' | 'success'
   date: string
   read: boolean
+  /** Deep link into the app when the notification is opened. */
+  to?: string
 }
 
 export interface Settings {

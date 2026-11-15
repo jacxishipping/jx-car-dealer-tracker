@@ -14,7 +14,7 @@ import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useSt
 
 import { AppTextField } from './AppTextField'
 import { useFocusTrap } from './useFocusTrap'
-import { Download, SearchX, X } from 'lucide-react'
+import { Download, Inbox, SearchX, X } from 'lucide-react'
 import { fmtMoney } from '../store/types'
 import { downloadCsv } from '../lib/csv'
 
@@ -62,10 +62,11 @@ export function StatusChip({ value }: { value: string }) {
   return <JXChip label={value} tone={chipTone[value] ?? 'neutral'} />
 }
 
-export function EmptyState({ title, detail, action }: { title: string; detail?: string; action?: ReactNode }) {
+export function EmptyState({ title, detail, action, kind = 'filtered' }: { title: string; detail?: string; action?: ReactNode; kind?: 'first-run' | 'filtered' }) {
+  const Icon = kind === 'first-run' ? Inbox : SearchX
   return (
     <div className="flex flex-col items-center justify-center rounded-[var(--radius-card)] border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
-      <SearchX className="h-8 w-8 text-slate-500 dark:text-slate-400" />
+      <Icon className="h-8 w-8 text-slate-500 dark:text-slate-400" />
       <p className="mt-3 font-semibold text-slate-900 dark:text-white">{title}</p>
       {detail && <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">{detail}</p>}
       {action && <div className="mt-4">{action}</div>}

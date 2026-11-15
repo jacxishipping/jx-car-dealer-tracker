@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppTextField as JXTextField } from '../components/AppTextField'
 import { JXButton, JXCard, JXNumberField, JXSelect, JXStepper, JXTextareaAutosize } from '../components/JXUI'
 import { Alert, Field, PageHeader, inputCls } from '../components/ui'
+import { useVinDecode } from '../lib/vinDecode'
 import { useStore } from '../store/store'
 import type { Vehicle, VehicleStatus } from '../store/types'
 import { VEHICLE_STATUSES } from '../store/types'
@@ -35,6 +36,17 @@ export default function AddVehicle() {
   const [busy, setBusy] = useState(false)
   const set = (key: keyof ReturnType<typeof initialForm>, value: string) => setForm((current) => ({ ...current, [key]: value }))
   const setNumber = (key: 'year' | 'mileage' | 'purchasePrice' | 'auctionFees' | 'transportCost' | 'askingPrice' | 'minPrice', value: number) => set(key, String(value))
+  const vinHint = useVinDecode(form.vin, (decoded) => {
+    setForm((current) => ({
+      ...current,
+      ...(decoded.year ? { year: decoded.year } : {}),
+      ...(decoded.make ? { make: decoded.make } : {}),
+      ...(decoded.model ? { model: decoded.model } : {}),
+      ...(decoded.trim ? { trim: decoded.trim } : {}),
+      ...(decoded.bodyType ? { bodyType: decoded.bodyType } : {}),
+      ...(decoded.engine ? { engine: decoded.engine } : {}),
+    }))
+  })
 
   const estimatedCost = useMemo(() => ['purchasePrice', 'auctionFees', 'transportCost'].reduce((sum, key) => sum + (Number(form[key as 'purchasePrice' | 'auctionFees' | 'transportCost']) || 0), 0), [form])
 
@@ -106,7 +118,7 @@ export default function AddVehicle() {
               <div className="mb-5 flex items-start gap-3"><span className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><CarFront className="h-5 w-5" /></span><div><h2 id="vehicle-step-title" className="text-lg font-semibold text-slate-900 dark:text-white">Vehicle identification</h2><p className="text-sm text-slate-500 dark:text-slate-400">Start with the details staff use to find this vehicle.</p></div></div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Stock number"><JXTextField label="" className="jx-text-field" value={form.stockNumber} onChange={(value) => set('stockNumber', value)} placeholder="e.g. CDT-204" /></Field>
-                <Field label="VIN" hint="11–17 characters. VINs must be unique."><JXTextField label="" className="jx-text-field" value={form.vin} onChange={(value) => set('vin', value.toUpperCase())} placeholder="Enter vehicle identification number" maxLength={17} /></Field>
+                <Field label="VIN" hint={[vinHint, '11–17 characters. VINs must be unique. Year, make, and model stay editable after a lookup.'].filter(Boolean).join(' · ')}><JXTextField label="" className="jx-text-field" value={form.vin} onChange={(value) => set('vin', value.toUpperCase())} placeholder="Enter vehicle identification number" maxLength={17} /></Field>
                 <Field label="Year"><JXNumberField label="" value={Number(form.year)} min={1886} max={CURRENT_YEAR + 2} step={1} unit="" onChange={(value) => setNumber('year', value)} size="md" /></Field>
                 <Field label="Make"><JXTextField label="" className="jx-text-field" value={form.make} onChange={(value) => set('make', value)} placeholder="e.g. Honda" /></Field>
                 <Field label="Model"><JXTextField label="" className="jx-text-field" value={form.model} onChange={(value) => set('model', value)} placeholder="e.g. Accord" /></Field>

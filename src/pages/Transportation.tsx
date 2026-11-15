@@ -1,5 +1,5 @@
 import ResponsiveTable from '../components/ResponsiveTable'
-import {JXButton, JXSelect} from '../components/JXUI'
+import {JXButton, JXButtonGroup, JXSelect} from '../components/JXUI'
 // Transportation — transport orders, status advance, delivery documents.
 // Delivering an order (store updateTransport) adds its price to the vehicle
 // cost basis and sets an In-transit vehicle to Received.
@@ -7,8 +7,9 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { ChevronDown, ChevronUp, Plus, Truck } from 'lucide-react'
+import { can } from '../lib/permissions'
 import { useStore } from '../store/store'
-import { fmtMoney, TRANSPORT_STATUSES, type TransportOrder, type TransportStatus } from '../store/types'
+import { fmtMoney, TRANSPORT_STATUSES, type TransportOrder, type TransportStatus, type Vehicle } from '../store/types'
 import {
   Alert, EmptyState, ExportButton, Field, inputCls, KpiCard, Modal,
   Money, PageHeader, selectCls, StatusChip, TableScrollHint, usePagination,
@@ -17,12 +18,43 @@ import {
 const today = () => new Date().toISOString().slice(0, 10)
 const num = (v: string) => (v === '' ? 0 : Number(v))
 
+function TransportLane({ title, orders, vehicleById }: { title: string; orders: TransportOrder[]; vehicleById: Map<string, Vehicle> }) {
+  return (
+    <section className="rounded-[var(--radius-card)] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+      <h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title} <span className="font-normal text-slate-500 dark:text-slate-400">({orders.length})</span></h2>
+      {orders.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">None</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {orders.map((order) => {
+            const vehicle = vehicleById.get(order.vehicleId)
+            return (
+              <li key={order.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                <p className="font-semibold text-slate-900 dark:text-white">{vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Vehicle not found'}</p>
+                {vehicle && <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{vehicle.stockNumber}</p>}
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{order.carrier} · {order.driver}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">ETA {order.expectedDelivery} · {order.pickupLocation} → {order.deliveryLocation}</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <StatusChip value={order.status} />
+                  <Money value={order.price} />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export default function Transportation() {
   const { state, addTransport, updateTransport } = useStore()
+  const canCreate = can(state.currentRole, 'transport.create')
   const [searchParams, setSearchParams] = useSearchParams()
   const openFromQuery = searchParams.get('new') === '1'
   const [openLocal, setOpenLocal] = useState(false)
-  const open = openLocal || openFromQuery
+  const open = canCreate && (openLocal || openFromQuery)
+  const [view, setView] = useState<'list' | 'lanes'>('list')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const closeModal = () => {
@@ -42,6 +74,9 @@ export default function Transportation() {
   const filtered = sorted.filter((t) =>
     (statusFilter === 'All' || t.status === statusFilter) &&
     (carrierFilter === 'All' || t.carrier === carrierFilter))
+  const todayIso = today()
+  const dueToday = filtered.filter((order) => order.expectedDelivery === todayIso)
+  const delayed = filtered.filter((order) => order.status === 'Delayed' || (order.expectedDelivery < todayIso && order.status !== 'Delivered'))
   const { pageItems, controls } = usePagination(filtered, 10)
 
   const carriers = useMemo(() => [...new Set(state.transport.map((t) => t.carrier))], [state.transport])
@@ -62,8 +97,9 @@ export default function Transportation() {
   }
 
   // ---- New transport order form ----
+  const linkedVehicleId = searchParams.get('vehicleId') ?? ''
   const [f, setF] = useState({
-    vehicleId: '', carrier: '', driver: '', pickupLocation: '', deliveryLocation: 'JX Auto Sales Lot A',
+    vehicleId: state.vehicles.some((v) => v.id === linkedVehicleId) ? linkedVehicleId : '', carrier: '', driver: '', pickupLocation: '', deliveryLocation: 'JX Auto Sales Lot A',
     pickupDate: today(), expectedDelivery: today(), price: '', status: 'Scheduled' as TransportStatus,
     gatePass: '', billOfLading: '', damageNotes: '', invoiceRef: '', paymentStatus: 'Unpaid',
   })
@@ -117,9 +153,11 @@ export default function Transportation() {
                 InvoiceRef: t.invoiceRef, DamageNotes: t.damageNotes, PaymentStatus: t.paymentStatus,
               }
             })} />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
-              <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />New transport order</span>
-            </JXButton>
+            {canCreate && (
+              <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
+                <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />New transport order</span>
+              </JXButton>
+            )}
           </>
         }
       />
@@ -133,13 +171,40 @@ export default function Transportation() {
 
       {success && <div className="mb-4"><Alert severity="success" title="Transport updated" description={success} /></div>}
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <JXButtonGroup
+          ariaLabel="Transport view"
+          items={[{ id: 'list', label: 'List' }, { id: 'lanes', label: 'Lanes' }]}
+          activeId={view}
+          variant="segmented"
+          size="sm"
+          onChange={(id) => setView(id as 'list' | 'lanes')}
+        />
         <div className="w-full sm:w-auto"><JXSelect label="Filter by status" className="jx-select-field jx-sr-label w-full sm:w-auto" value={statusFilter} onChange={setStatusFilter} options={[{ id: 'All', label: 'All statuses' }, ...TRANSPORT_STATUSES.map((status) => ({ id: status, label: status }))]} /></div>
         <div className="w-full sm:w-auto"><JXSelect label="Filter by carrier" className="jx-select-field jx-sr-label w-full sm:w-auto" value={carrierFilter} onChange={setCarrierFilter} options={[{ id: 'All', label: 'All carriers' }, ...carriers.map((carrier) => ({ id: carrier, label: carrier }))]} searchable /></div>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No transport orders found" detail="Adjust the filters, or create a new transport order." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpenLocal(true)}>New transport order</JXButton>} />
+        state.transport.length === 0 ? (
+          <EmptyState
+            kind="first-run"
+            title="No transport orders yet"
+            detail={canCreate ? 'Book a carrier when a vehicle needs to move between the auction and the lot.' : `Signed in as ${state.currentRole}. Booking transport is available to Owner, Admin, and Manager.`}
+            action={canCreate ? <JXButton variant="contained" size="sm" lockWidth={false} onClick={() => { setError(null); setOpenLocal(true) }}>New transport order</JXButton> : undefined}
+          />
+        ) : (
+          <EmptyState
+            kind="filtered"
+            title="No transport orders match"
+            detail="Try another status or carrier."
+            action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setStatusFilter('All'); setCarrierFilter('All') }}>Clear filters</JXButton>}
+          />
+        )
+      ) : view === 'lanes' ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TransportLane title="Due today" orders={dueToday} vehicleById={vehicleById} />
+          <TransportLane title="Delayed" orders={delayed} vehicleById={vehicleById} />
+        </div>
       ) : (
         <>
           <TableScrollHint />
@@ -215,7 +280,7 @@ export default function Transportation() {
           </div>
         </>
       )}
-      {controls}
+      {view === 'list' && controls}
 
       {open && (
         <Modal title="New transport order" onClose={closeModal} wide>

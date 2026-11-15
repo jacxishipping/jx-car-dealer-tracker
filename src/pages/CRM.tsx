@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
 import { LEAD_STAGES, fmtMoney, type LeadStage } from '../store/types'
+import { can } from '../lib/permissions'
 import { Alert, EmptyState, Field, inputCls, KpiCard, Money, PageHeader, StatusChip, TableScrollHint, usePagination } from '../components/ui'
 
 import {JXButton, JXCard, JXChip, JXNumberField, JXSelect} from '../components/JXUI'
@@ -12,19 +13,35 @@ const today = new Date().toISOString().slice(0, 10)
 const isOverdue = (followUpDate: string, stage: LeadStage) =>
   followUpDate < today && stage !== 'Sold' && stage !== 'Lost'
 
+function contactLinks(customer: { phone: string; email: string; preferredContact: 'Phone' | 'Email' | 'WhatsApp' }) {
+  const digits = customer.phone.replace(/\D/g, '')
+  const actions: { type: 'Call' | 'WhatsApp' | 'Email'; href: string; external: boolean }[] = []
+  if (digits) {
+    actions.push({ type: 'Call', href: `tel:+${digits}`, external: false })
+    actions.push({ type: 'WhatsApp', href: `https://wa.me/${digits}`, external: true })
+  }
+  if (customer.email) actions.push({ type: 'Email', href: `mailto:${customer.email}`, external: false })
+  const preferred = customer.preferredContact === 'Phone' ? 'Call' : customer.preferredContact
+  return actions.sort((a, b) => Number(b.type === preferred) - Number(a.type === preferred))
+}
+
 export default function CRM() {
-  const { state, addCustomer, moveLead, addInteraction, addOffer } = useStore()
+  const { state, addCustomer, moveLead, updateLead, addInteraction, addOffer } = useStore()
   const location = useLocation()
   const navigate = useNavigate()
   const newPage = location.pathname.endsWith('/crm/new')
   const [createStep, setCreateStep] = useState(0)
   const [searchParams] = useSearchParams()
-  const { customers, leads, interactions, offers, vehicles, currentUser } = state
+  const { customers, leads, interactions, offers, vehicles, currentUser, currentRole } = state
+  const canCreateCustomer = can(currentRole, 'customer.create')
+  const canStartDeal = can(currentRole, 'deal.create')
   const [search, setSearch] = useState('')
   const [salesFilter, setSalesFilter] = useState('All')
-  const [followUpFilter, setFollowUpFilter] = useState(searchParams.get('followUp') === 'overdue' ? 'Overdue' : 'All')
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(() => (location.state as { newCustomerId?: string } | null)?.newCustomerId ?? null)
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const followUpParam = searchParams.get('followUp')
+  const linkedLead = leads.find((l) => l.id === searchParams.get('lead')) ?? null
+  const [followUpFilter, setFollowUpFilter] = useState(followUpParam === 'overdue' ? 'Overdue' : followUpParam === 'today' ? 'Due today' : 'All')
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(linkedLead?.customerId ?? (location.state as { newCustomerId?: string } | null)?.newCustomerId ?? null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(linkedLead?.id ?? null)
   const [feedback, setFeedback] = useState(() => (location.state as { customerFeedback?: string } | null)?.customerFeedback ?? '')
   const [undoMove, setUndoMove] = useState<{ leadId: string; previousStage: LeadStage } | null>(null)
 
@@ -46,6 +63,7 @@ export default function CRM() {
   const [offerVehicleId, setOfferVehicleId] = useState('')
   const [offerAmount, setOfferAmount] = useState('')
   const [offerError, setOfferError] = useState('')
+  const [followUpDraft, setFollowUpDraft] = useState(linkedLead?.followUpDate ?? '')
 
   const salespeople = useMemo(() => [...new Set(customers.map((c) => c.salesperson))].sort(), [customers])
   const filteredCustomers = customers.filter((c) => {
@@ -56,6 +74,7 @@ export default function CRM() {
   const { pageItems, controls } = usePagination(filteredCustomers, 8)
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) ?? null
   const selectedLead = leads.find((l) => l.id === selectedLeadId) ?? null
+  useEffect(() => { setFollowUpDraft(selectedLead?.followUpDate ?? '') }, [selectedLead?.id, selectedLead?.followUpDate])
   const leadCustomer = selectedLead ? customers.find((c) => c.id === selectedLead.customerId) : null
   // Detail subject: lead's customer if a lead is selected, else the selected customer
   const detailCustomer = leadCustomer ?? selectedCustomer
@@ -104,6 +123,14 @@ export default function CRM() {
     navigate(from && from.startsWith('/crm') && !from.endsWith('/new') ? from : '/crm', { replace: true })
   }
 
+  if (newPage && !canCreateCustomer) return (
+    <>
+      <PageHeader title="New customer" subtitle="Adding a customer requires customer.create." />
+      <Alert severity="error" title="You cannot add customers" description="Your role does not include customer.create." />
+      <div className="mt-4"><JXButton variant="outlined" lockWidth={false} onClick={() => navigate('/crm')}>Back to CRM</JXButton></div>
+    </>
+  )
+
   if (newPage) return <WorkflowPage title="New customer" subtitle="Add a customer record in three short steps." steps={customerSteps} step={createStep} onStepChange={setCreateStep} onCancel={cancelNewCustomer} onBack={() => setCreateStep((current) => Math.max(0, current - 1))} onNext={() => { if (validateCustomerStep()) setCreateStep((current) => Math.min(customerSteps.length - 1, current + 1)) }} onSubmit={submitCustomer} submitLabel="Add customer" error={formError}>
     {createStep === 0 && <section aria-labelledby="customer-contact-title"><h2 id="customer-contact-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Customer contact</h2><div className="grid gap-4 sm:grid-cols-2"><Field label="Name *"><JXTextField className="jx-text-field" label="" value={name} onChange={setName} placeholder="Full name" /></Field><Field label="Phone"><JXTextField className="jx-text-field" label="" value={phone} onChange={setPhone} placeholder="+971 …" /></Field><Field label="Email"><JXTextField className="jx-text-field" label="" value={email} onChange={setEmail} placeholder="name@example.com" type="email" /></Field><Field label="Address"><JXTextField className="jx-text-field" label="" value={address} onChange={setAddress} placeholder="Area, city" /></Field></div></section>}
     {createStep === 1 && <section aria-labelledby="customer-preferences-title"><h2 id="customer-preferences-title" className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Customer preferences</h2><div className="grid gap-4 sm:grid-cols-2"><JXSelect label="Preferred contact" className="jx-select-field jx-field-select" value={pref} onChange={(value) => setPref(value as typeof pref)} options={(['Phone', 'Email', 'WhatsApp'] as const).map((value) => ({ id: value, label: value }))} /><Field label="Budget (USD)"><JXNumberField label="" value={Number(budget) || 0} min={0} max={1_000_000_000} step={500} unit="USD" onChange={(value) => setBudget(String(value))} /></Field><JXSelect label="Lead source" className="jx-select-field jx-field-select" value={leadSource} onChange={setLeadSource} options={['Walk-in', 'Website', 'Referral', 'Online ad', 'Phone'].map((value) => ({ id: value, label: value }))} /><Field label="Salesperson"><JXTextField className="jx-text-field" label="" value={salesperson} onChange={setSalesperson} /></Field><div className="sm:col-span-2"><Field label="Notes"><JXTextField className="jx-text-field" label="" value={notes} onChange={setNotes} placeholder="What are they looking for?" /></Field></div></div></section>}
@@ -144,7 +171,7 @@ export default function CRM() {
       <PageHeader
         title="CRM"
         subtitle="Customers, leads and follow-ups — one record per customer, shared with deals and sales."
-        actions={[<JXButton key="new" variant="contained" size="sm" onClick={openNewCustomer}>+ New customer</JXButton>]}
+        actions={canCreateCustomer ? [<JXButton key="new" variant="contained" size="sm" onClick={openNewCustomer}>+ New customer</JXButton>] : []}
       />
       {feedback && <div role="status" aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"><span>{feedback}</span>{undoMove && <JXButton variant="text" size="sm" lockWidth={false} onClick={() => { moveLead(undoMove.leadId, undoMove.previousStage); setFeedback(`Lead restored to ${undoMove.previousStage}.`); setUndoMove(null) }}>Undo</JXButton>}</div>}
 
@@ -169,7 +196,11 @@ export default function CRM() {
             </div>
           </div>
           {pageItems.length === 0 ? (
-            <EmptyState title="No customers match" detail="Adjust the search or salesperson filter, or add a new customer." />
+            customers.length === 0 ? (
+              <EmptyState kind="first-run" title="No customers yet" detail="Add a customer to start tracking leads, offers, and follow-ups." action={canCreateCustomer ? <JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewCustomer}>+ New customer</JXButton> : undefined} />
+            ) : (
+              <EmptyState kind="filtered" title="No customers match" detail="Adjust the search or salesperson filter." />
+            )
           ) : (
           <>
             <TableScrollHint />
@@ -265,6 +296,18 @@ export default function CRM() {
                     return v ? `${v.stockNumber} (${v.year} ${v.make} ${v.model})` : id
                   }).join(', ')}
                 </p>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {contactLinks(detailCustomer).map((action) => {
+                    const preferred = (detailCustomer.preferredContact === 'Phone' ? 'Call' : detailCustomer.preferredContact) === action.type
+                    return (
+                      <a key={action.type} href={action.href} target={action.external ? '_blank' : undefined} rel={action.external ? 'noreferrer' : undefined}
+                        onClick={() => { addInteraction(detailCustomer.id, action.type, `${action.type} opened from ${detailCustomer.preferredContact} preference.`); setUndoMove(null); setFeedback(`${action.type} logged for ${detailCustomer.name}.`) }}
+                        className={`inline-flex min-h-11 items-center rounded-[var(--radius-control)] border px-3 text-sm font-semibold ${preferred ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-500/40 text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950'}`}>
+                        {action.type}{preferred ? ' · preferred' : ''}
+                      </a>
+                    )
+                  })}
+                </div>
 
                 {selectedLead && (
                   <div className="mb-4 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">
@@ -275,6 +318,12 @@ export default function CRM() {
                       {isOverdue(selectedLead.followUpDate, selectedLead.stage) ? ' — OVERDUE, follow up now' : selectedLead.followUpDate < today ? ' — past date' : ` — in ${Math.ceil((new Date(selectedLead.followUpDate).getTime() - new Date(today).getTime()) / 86400000)} day(s)`}
                     </p>
                     <p className="text-xs text-slate-500">Created {selectedLead.createdAt}</p>
+                    <div className="mt-3 flex flex-wrap items-end gap-2">
+                      <Field label="Reschedule follow-up">
+                        <input className={inputCls} type="date" value={followUpDraft} onChange={(e) => setFollowUpDraft(e.target.value)} />
+                      </Field>
+                      <JXButton variant="outlined" size="sm" lockWidth={false} disabled={!followUpDraft || followUpDraft === selectedLead.followUpDate} onClick={() => { updateLead(selectedLead.id, { followUpDate: followUpDraft }); setUndoMove(null); setFeedback(`Follow-up moved to ${followUpDraft}.`) }}>Save follow-up</JXButton>
+                    </div>
                   </div>
                 )}
                 {detailLeads.length > 0 && !selectedLead && (
@@ -316,6 +365,9 @@ export default function CRM() {
                           <span className="font-semibold"><Money value={o.amount} /></span> — {v ? `${v.stockNumber} ${v.year} ${v.make} ${v.model}` : o.vehicleId}
                           <span className="ml-2"><StatusChip value={o.status} /></span>
                           <span className="block text-xs text-slate-500 dark:text-slate-400">{o.date}{o.notes ? ` · ${o.notes}` : ''}</span>
+                          {o.status === 'Open' && canStartDeal && (
+                            <div className="mt-2"><JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => navigate(`/sales/new?vehicleId=${encodeURIComponent(o.vehicleId)}&customerId=${encodeURIComponent(o.customerId)}&amount=${encodeURIComponent(String(o.amount))}`)}>Start deal</JXButton></div>
+                          )}
                         </li>
                       )
                     })}

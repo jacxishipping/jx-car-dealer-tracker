@@ -10,6 +10,7 @@ import {JXAlert, JXButton, JXCard, JXChip} from '../components/JXUI'
 // deletions are NEVER executed from a text command in this build: they
 // always stop at a confirm screen and must be completed in their module.
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CheckCircle2, ImagePlus, Mic, RotateCcw, Send, ShieldAlert, Sparkles } from 'lucide-react'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
@@ -271,6 +272,7 @@ export default function AiAssistant() {
       <PageHeader
         title="AI Assistant"
         subtitle="Voice-to-Work — type a command in plain English. Deterministic parser, no AI backend in this build: nothing executes until you confirm it."
+        actions={<Link to="/mcp" className="text-sm font-semibold text-indigo-600 underline underline-offset-2 dark:text-indigo-400">MCP integration</Link>}
       />
       <JXAlert
         severity="info"

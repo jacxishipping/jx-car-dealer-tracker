@@ -9,7 +9,7 @@ import type {
   JournalEntry, Lead, LeadStage, Part, PartAllocation, Purchase, ReconJob, Role, Settings,
   TeamMember, TransportOrder, Vehicle,
 } from './types'
-import { money, uid } from './types'
+import { fmtMoney, money, uid } from './types'
 import { buildSeedState } from './seed'
 import {
   applyFifoSlices, dealProfit, fifoConsume, vehicleAllInCost,
@@ -46,6 +46,7 @@ export interface StoreApi {
   addVehicle: (v: Omit<Vehicle, 'id' | 'createdAt'>) => { ok: boolean; error?: string; id?: string }
   recordPurchase: (p: Omit<Purchase, 'id' | 'ref' | 'createdAt'>, vehicle: Omit<Vehicle, 'id' | 'createdAt'>) => { ok: boolean; error?: string }
   updateVehicleStatus: (vehicleId: string, status: Vehicle['status']) => void
+  updateVehicle: (vehicleId: string, patch: Partial<Omit<Vehicle, 'id' | 'createdAt'>>) => void
   // Transport
   addTransport: (t: Omit<TransportOrder, 'id'>) => void
   updateTransport: (id: string, patch: Partial<TransportOrder>) => void
@@ -60,11 +61,12 @@ export interface StoreApi {
   // CRM / sales
   addCustomer: (c: Omit<Customer, 'id'>) => string
   moveLead: (leadId: string, stage: LeadStage) => void
+  updateLead: (leadId: string, patch: Partial<Pick<Lead, 'stage' | 'followUpDate' | 'notes'>>) => void
   addLead: (l: Omit<Lead, 'id' | 'createdAt'>) => void
   addInteraction: (customerId: string, type: 'Call' | 'Email' | 'WhatsApp' | 'Visit' | 'Test drive', notes: string) => void
   addOffer: (vehicleId: string, customerId: string, amount: number) => void
   createDeal: (d: Omit<Deal, 'id' | 'ref' | 'status' | 'createdAt' | 'finalizedAt' | 'saleRef'>) => string
-  finalizeSale: (dealId: string) => { ok: boolean; error?: string; saleRef?: string }
+  finalizeSale: (dealId: string, opts?: { priceOverride?: boolean }) => { ok: boolean; error?: string; saleRef?: string }
   recordPayment: (receivableId: string, amount: number, accountId: string) => { ok: boolean; error?: string }
   transfer: (fromAccountId: string, toAccountId: string, amount: number, note: string) => { ok: boolean; error?: string }
   addAccount: (account: Omit<Account, 'id'>) => { ok: boolean; error?: string; id?: string }
@@ -222,6 +224,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateVehicleStatus: (vehicleId, status) =>
         setState((s) => ({ ...s, vehicles: s.vehicles.map((v) => v.id === vehicleId ? { ...v, status } : v) })),
 
+      updateVehicle: (vehicleId, patch) => setState((s) => {
+        const current = s.vehicles.find((v) => v.id === vehicleId)
+        if (!current) return s
+        const nextVehicle = { ...current, ...patch }
+        const summary = patch.askingPrice != null && patch.askingPrice !== current.askingPrice
+          ? `Asking price for ${current.stockNumber} changed from ${fmtMoney(current.askingPrice)} to ${fmtMoney(patch.askingPrice)}.`
+          : `Vehicle ${current.stockNumber} updated.`
+        return audit(
+          { ...s, vehicles: s.vehicles.map((v) => v.id === vehicleId ? nextVehicle : v) },
+          'VEHICLE_UPDATED', 'Vehicle', vehicleId, summary,
+        )
+      }),
+
       addTransport: (t) => {
         const id = uid('t')
         setState((s) => audit({ ...s, transport: [...s.transport, { ...t, id }] },
@@ -330,6 +345,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         leads: s.leads.map((l) => l.id === leadId ? { ...l, stage } : l),
       })),
 
+      updateLead: (leadId, patch) => setState((s) => ({
+        ...s,
+        leads: s.leads.map((l) => l.id === leadId ? { ...l, ...patch } : l),
+      })),
+
       addLead: (l) => setState((s) => ({ ...s, leads: [...s.leads, { ...l, id: uid('l'), createdAt: today() }] })),
 
       addInteraction: (customerId, type, notes) => setState((s) => ({
@@ -349,7 +369,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return id
       },
 
-      finalizeSale: (dealId) => {
+      finalizeSale: (dealId, _opts) => {
         const deal = state.deals.find((d) => d.id === dealId)
         if (!deal) return { ok: false, error: 'Deal not found.' }
         if (deal.status === 'Finalized') return { ok: false, error: 'Deal is already finalized.' }
@@ -358,6 +378,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (vehicle.status === 'Sold') return { ok: false, error: `Vehicle ${vehicle.stockNumber} is already sold.` }
         if (!['Available', 'Reserved'].includes(vehicle.status)) {
           return { ok: false, error: `Vehicle ${vehicle.stockNumber} is ${vehicle.status} — only Available or Reserved vehicles can be sold.` }
+        }
+        if (vehicle.titleStatus === 'Missing' || vehicle.titleStatus === 'Lien') {
+          return { ok: false, error: `Vehicle ${vehicle.stockNumber} title status is ${vehicle.titleStatus}. Resolve the title before finalising.` }
         }
         const customer = state.customers.find((c) => c.id === deal.customerId)
         if (!customer) return { ok: false, error: 'Customer not found.' }
@@ -531,6 +554,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       updateVehicleStatus: (vehicleId, status) => { fire(serverApi.updateVehicleStatus(vehicleId, status)) },
+      updateVehicle: (vehicleId, patch) => { fire(serverApi.updateVehicle(vehicleId, patch)) },
 
       addTransport: (t) => { fire(serverApi.addTransport(t)) },
       updateTransport: (id, patch) => { fire(serverApi.updateTransport(id, patch)) },
@@ -574,6 +598,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
 
       moveLead: (leadId, stage) => { fire(serverApi.moveLead(leadId, stage)) },
+      updateLead: (leadId, patch) => { fire(serverApi.updateLead(leadId, patch)) },
       addLead: (l) => { fire(serverApi.addLead(l)) },
 
       addInteraction: (customerId, type, notes) => { fire(serverApi.addInteraction(customerId, type, notes)) },
@@ -589,7 +614,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return clientId
       },
 
-      finalizeSale: (dealId) => {
+      finalizeSale: (dealId, opts) => {
         const deal = state.deals.find((d) => d.id === dealId)
         if (!deal) return { ok: false, error: 'Deal not found.' }
         if (deal.status === 'Finalized') return { ok: false, error: 'Deal is already finalized.' }
@@ -601,7 +626,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         const customer = state.customers.find((c) => c.id === deal.customerId)
         if (!customer) return { ok: false, error: 'Customer not found.' }
-        fire(serverApi.finalizeSale(dealId))
+        fire(serverApi.finalizeSale(dealId, { priceOverride: opts?.priceOverride === true }))
         return { ok: true, saleRef: nextRef('SALE', state.sales) }
       },
 

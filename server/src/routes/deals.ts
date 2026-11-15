@@ -43,16 +43,25 @@ dealsRouter.post(
   },
 );
 
+const finalizeSchema = z.object({
+  priceOverride: z.boolean().optional(),
+});
+
 // POST /api/deals/:id/finalize — one atomic transaction (see services.ts).
 dealsRouter.post(
   '/:id/finalize',
   requirePermission('sale.finalize'),
+  validateBody(finalizeSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = requireOrgId(req);
       const user = requireUser(req);
+      const body = req.body as { priceOverride?: boolean };
       const { sale } = await withTransaction(async (client) =>
-        finalizeSaleTx(client, orgId, req.params.id, user),
+        finalizeSaleTx(client, orgId, req.params.id, user, {
+          priceOverride: body.priceOverride === true,
+          role: req.role,
+        }),
       );
       res.json({ sale: m.mapSale(sale) });
     } catch (err) {

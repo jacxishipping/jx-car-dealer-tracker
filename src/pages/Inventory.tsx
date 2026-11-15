@@ -1,27 +1,40 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
-import {JXButtonGroup} from '../components/JXUI'
-import { AppTextField as JXTextField } from "../components/AppTextField"
+import { JXButton, JXButtonGroup, JXSelect } from '../components/JXUI'
+import { AppTextField as JXTextField } from '../components/AppTextField'
 import { useStore } from '../store/store'
-import { VEHICLE_STATUSES } from '../store/types'
+import { VEHICLE_STATUSES, money } from '../store/types'
 import { daysInStock } from '../store/engine'
 import { EmptyState, ExportButton, Money, PageHeader, StatusChip, usePagination } from '../components/ui'
 
-import {JXButton, JXSelect} from '../components/JXUI'
 type SortKey = 'price' | 'date' | 'mileage'
 type InventoryView = { id: string; name: string; query: string; status: string; sortKey: SortKey; sortDir: 'asc' | 'desc' }
 const SAVED_VIEWS_KEY = 'jx-dealer-inventory-views-v1'
+const VIEW_PARAMS = ['aged', 'available', 'recon', 'all'] as const
+type ViewParam = (typeof VIEW_PARAMS)[number]
+
+const presetIdFor = (view: string | null) =>
+  view === 'aged' || view === 'available' || view === 'recon' || view === 'all' ? `preset:${view}` : null
+
+const presetParamFor = (id: string): ViewParam | null =>
+  id === 'preset:aged' ? 'aged' : id === 'preset:available' ? 'available' : id === 'preset:recon' ? 'recon' : id === 'preset:all' ? 'all' : null
+
+const statusForPreset = (id: string | null) =>
+  id === 'preset:available' ? 'Available' : id === 'preset:recon' ? 'In reconditioning' : id === 'preset:aged' ? 'Aged stock' : 'All'
 
 export default function Inventory() {
-  const { state } = useStore()
+  const { state, updateVehicle, updateVehicleStatus, addReconJob } = useStore()
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialPreset = presetIdFor(searchParams.get('view'))
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '')
+  const [statusFilter, setStatusFilter] = useState<string>(statusForPreset(initialPreset))
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [viewName, setViewName] = useState('')
-  const [activeView, setActiveView] = useState('preset:all')
+  const [activeView, setActiveView] = useState(initialPreset ?? 'preset:all')
+  const [bulkNote, setBulkNote] = useState('')
   const [savedViews, setSavedViews] = useState<InventoryView[]>(() => {
     try {
       const value: unknown = JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) ?? '[]')
@@ -29,6 +42,7 @@ export default function Inventory() {
     } catch { return [] }
   })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const viewOnLoad = useRef(searchParams.get('view'))
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -55,10 +69,21 @@ export default function Inventory() {
     try { localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(savedViews)) } catch { /* Saved views are optional when browser storage is unavailable. */ }
   }, [savedViews])
 
+  const replaceSearch = (mutate: (next: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      mutate(next)
+      return next
+    }, { replace: true })
+  }
+
   const applyView = (id: string) => {
     setActiveView(id)
+    setBulkNote('')
     const view = savedViews.find((item) => item.id === id)
+    let nextQuery = ''
     if (view) {
+      nextQuery = view.query
       setQuery(view.query); setStatusFilter(view.status); setSortKey(view.sortKey); setSortDir(view.sortDir)
     } else if (id === 'preset:all') {
       setQuery(''); setStatusFilter('All'); setSortKey('date'); setSortDir('desc')
@@ -66,7 +91,34 @@ export default function Inventory() {
       setQuery(''); setSortKey('date'); setSortDir('desc')
       setStatusFilter(id === 'preset:available' ? 'Available' : id === 'preset:recon' ? 'In reconditioning' : id === 'preset:aged' ? 'Aged stock' : 'All')
     }
+    const preset = presetParamFor(id)
+    replaceSearch((next) => {
+      if (preset) next.set('view', preset)
+      else next.delete('view')
+      if (nextQuery) next.set('q', nextQuery)
+      else next.delete('q')
+    })
     reset(); setSelectedIds([])
+  }
+
+  useEffect(() => {
+    const preset = presetIdFor(viewOnLoad.current)
+    if (preset) applyView(preset)
+    // Apply ?view= once on mount. applyView also writes the preset back to the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const syncQuery = (value: string) => {
+    setQuery(value)
+    setActiveView('')
+    setBulkNote('')
+    reset()
+    setSelectedIds([])
+    replaceSearch((next) => {
+      if (value.trim()) next.set('q', value)
+      else next.delete('q')
+      next.delete('view')
+    })
   }
 
   const saveCurrentView = () => {
@@ -78,15 +130,51 @@ export default function Inventory() {
     }])
     setActiveView(id)
     setViewName('')
+    replaceSearch((next) => { next.delete('view') })
+  }
+
+  const dropAsking = () => {
+    selectedVehicles.forEach((vehicle) => {
+      updateVehicle(vehicle.id, { askingPrice: money(vehicle.askingPrice * 0.95) })
+    })
+    setBulkNote(`Asking price reduced 5% on ${selectedVehicles.length} vehicle${selectedVehicles.length === 1 ? '' : 's'}.`)
+    setSelectedIds([])
+  }
+
+  const markWholesale = () => {
+    selectedVehicles.forEach((vehicle) => updateVehicleStatus(vehicle.id, 'Wholesale'))
+    setBulkNote(`${selectedVehicles.length} vehicle${selectedVehicles.length === 1 ? '' : 's'} marked Wholesale.`)
+    setSelectedIds([])
+  }
+
+  const startRecon = () => {
+    const startedAt = new Date().toISOString().slice(0, 10)
+    selectedVehicles.forEach((vehicle) => {
+      addReconJob({
+        vehicleId: vehicle.id,
+        title: 'Aged-stock reconditioning',
+        category: 'Detailing',
+        status: 'Not started',
+        technician: state.currentUser,
+        estimatedCost: 0,
+        actualCost: 0,
+        startedAt,
+        completedAt: null,
+        notes: 'Started from the aged inventory list.',
+      })
+      updateVehicleStatus(vehicle.id, 'In reconditioning')
+    })
+    setBulkNote(`Recon started on ${selectedVehicles.length} vehicle${selectedVehicles.length === 1 ? '' : 's'}.`)
+    setSelectedIds([])
   }
 
   const agedViewCount = state.vehicles.filter((vehicle) => !['Sold', 'Wholesale', 'Returned'].includes(vehicle.status) && daysInStock(vehicle) > state.settings.targetHoldDays).length
-  const viewOptions = [
-    { id: 'preset:all', label: 'All inventory' },
+  const agedFilterActive = statusFilter === 'Aged stock'
+  const presetItems = [
     { id: 'preset:available', label: 'Available' },
-    { id: 'preset:aged', label: `Aged stock (${agedViewCount})` },
-    { id: 'preset:recon', label: 'Needs reconditioning' },
-    ...savedViews.map((view) => ({ id: view.id, label: `Saved: ${view.name}` })),
+    { id: 'preset:aged', label: agedViewCount > 0 ? `Aged (${agedViewCount})` : 'Aged' },
+    { id: 'preset:recon', label: 'In recon' },
+    { id: 'preset:all', label: 'All' },
   ]
 
   return (
@@ -112,8 +200,16 @@ export default function Inventory() {
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
+        <JXButtonGroup
+          ariaLabel="Inventory presets"
+          items={presetItems}
+          activeId={activeView.startsWith('preset:') ? activeView : undefined}
+          variant="segmented"
+          size="sm"
+          onChange={applyView}
+        />
         <div className="min-w-56 flex-1">
-          <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); setActiveView(''); reset(); setSelectedIds([]) }} placeholder="e.g. CDT-101, Toyota…" />
+          <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={syncQuery} placeholder="e.g. CDT-101, Toyota…" />
         </div>
         <div className="w-full sm:w-48">
           <JXSelect
@@ -121,7 +217,14 @@ export default function Inventory() {
             className="jx-select-field jx-field-select"
             options={[{ id: 'All', label: 'All statuses' }, { id: 'Aged stock', label: `Aged stock (${agedViewCount})` }, ...VEHICLE_STATUSES.map((s) => ({ id: s, label: s }))]}
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setActiveView(''); reset(); setSelectedIds([]) }}
+            onChange={(v) => {
+              setStatusFilter(v)
+              setActiveView('')
+              setBulkNote('')
+              reset()
+              setSelectedIds([])
+              replaceSearch((next) => { next.delete('view') })
+            }}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -139,7 +242,7 @@ export default function Inventory() {
               reset()
             }}
           />
-          <JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setSortDir((dir) => dir === 'asc' ? 'desc' : 'asc'); setActiveView(''); reset() }}>
+          <JXButton variant="outlined" size="sm" onClick={() => { setSortDir((dir) => dir === 'asc' ? 'desc' : 'asc'); setActiveView(''); reset() }}>
             {sortDir === 'desc' ? (sortKey === 'date' ? 'Newest first ↓' : 'High to low ↓') : (sortKey === 'date' ? 'Oldest first ↑' : 'Low to high ↑')}
           </JXButton>
         </div>
@@ -149,25 +252,39 @@ export default function Inventory() {
         <details className="mb-4 rounded-[var(--radius-control)] border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
           <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Saved views</summary>
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <div className="w-full sm:w-60">
-              <JXSelect label="Inventory view" className="jx-select-field jx-field-select" options={viewOptions} value={activeView} placeholder="Choose a saved view" onChange={applyView} />
-            </div>
+            {savedViews.length > 0 && (
+              <div className="w-full sm:w-60">
+                <JXSelect label="Saved view" className="jx-select-field jx-field-select" options={savedViews.map((view) => ({ id: view.id, label: view.name }))} value={activeView.startsWith('view-') ? activeView : ''} placeholder="Choose a saved view" onChange={applyView} />
+              </div>
+            )}
             <div className="flex min-w-56 flex-1 gap-2">
               <label className="sr-only" htmlFor="inventory-view-name">Name this view</label>
               <JXTextField id="inventory-view-name" className="jx-text-field" label="" value={viewName} onChange={setViewName} placeholder="Name current view…" />
-              <JXButton variant="outlined" size="sm" lockWidth={false} disabled={!viewName.trim()} onClick={saveCurrentView}>Save view</JXButton>
-              {activeView.startsWith('view-') && <JXButton variant="text" size="sm" lockWidth={false} aria-label="Delete selected saved view" onClick={() => { setSavedViews((views) => views.filter((view) => view.id !== activeView)); setActiveView('preset:all') }}><Trash2 className="h-4 w-4" /><span className="sr-only">Delete view</span></JXButton>}
+              <JXButton variant="outlined" size="sm" disabled={!viewName.trim()} onClick={saveCurrentView}>Save view</JXButton>
+              {activeView.startsWith('view-') && <JXButton variant="text" size="sm" aria-label="Delete selected saved view" onClick={() => { setSavedViews((views) => views.filter((view) => view.id !== activeView)); applyView('preset:all') }}><Trash2 className="h-4 w-4" /><span className="sr-only">Delete view</span></JXButton>}
             </div>
           </div>
         </details>
       )}
 
+      {bulkNote && <p role="status" className="mb-3 text-sm text-slate-600 dark:text-slate-300">{bulkNote}</p>}
+
       {filtered.length === 0 ? (
-        <EmptyState
-          title="No vehicles match"
-          detail={state.vehicles.length === 0 ? 'No vehicles in the tracker yet — add your first vehicle.' : 'Try a different search or status filter.'}
-          action={<JXButton variant="outlined" size="sm" lockWidth={false} onClick={() => { setQuery(''); setStatusFilter('All'); setActiveView('preset:all'); setSelectedIds([]); reset() }}>Clear filters</JXButton>}
-        />
+        state.vehicles.length === 0 ? (
+          <EmptyState
+            kind="first-run"
+            title="No vehicles yet"
+            detail="Add a vehicle to start tracking stock, cost, and days on the lot."
+            action={<JXButton variant="contained" size="sm" onClick={() => navigate('/inventory/new')}>Add vehicle</JXButton>}
+          />
+        ) : (
+          <EmptyState
+            kind="filtered"
+            title="No vehicles match"
+            detail="Try a different search or status filter."
+            action={<JXButton variant="outlined" size="sm" onClick={() => applyView('preset:all')}>Clear filters</JXButton>}
+          />
+        )
       ) : (
         <>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -175,7 +292,20 @@ export default function Inventory() {
               <input type="checkbox" aria-label="Select all vehicles on this page" checked={pageItems.length > 0 && pageItems.every((vehicle) => selectedIds.includes(vehicle.id))} onChange={(event) => setSelectedIds((ids) => event.target.checked ? [...new Set([...ids, ...pageItems.map((vehicle) => vehicle.id)])] : ids.filter((id) => !pageItems.some((vehicle) => vehicle.id === id)))} />
               Select this page
             </label>
-            {selectedVehicles.length > 0 && <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-slate-600 dark:text-slate-300">{selectedVehicles.length} selected</span><ExportButton filename="selected-vehicles.csv" label="Export selected" rows={selectedVehicles.map((v) => ({ stockNumber: v.stockNumber, vin: v.vin, year: v.year, make: v.make, model: v.model, status: v.status, mileage: v.mileage, askingPrice: v.askingPrice }))} /><JXButton variant="text" size="sm" lockWidth={false} onClick={() => setSelectedIds([])}>Clear selection</JXButton></div>}
+            {selectedVehicles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-slate-600 dark:text-slate-300">{selectedVehicles.length} selected</span>
+                <ExportButton filename="selected-vehicles.csv" label="Export selected" rows={selectedVehicles.map((v) => ({ stockNumber: v.stockNumber, vin: v.vin, year: v.year, make: v.make, model: v.model, status: v.status, mileage: v.mileage, askingPrice: v.askingPrice }))} />
+                {agedFilterActive && (
+                  <>
+                    <JXButton variant="outlined" size="sm" onClick={dropAsking}>Drop asking 5%</JXButton>
+                    <JXButton variant="outlined" size="sm" onClick={markWholesale}>Mark Wholesale</JXButton>
+                    <JXButton variant="outlined" size="sm" onClick={startRecon}>Start recon</JXButton>
+                  </>
+                )}
+                <JXButton variant="text" size="sm" onClick={() => setSelectedIds([])}>Clear selection</JXButton>
+              </div>
+            )}
           </div>
           <div className="hidden overflow-x-auto rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)] xl:block">
             <table className="w-full min-w-[760px] text-left text-sm">
@@ -226,9 +356,9 @@ export default function Inventory() {
             ))}
             <div className="px-1">{controls}</div>
           </div>
-          </>
-      )}
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Select a stock number to open the vehicle detail page.</p>
         </>
-      )
-      }
+      )}
+    </>
+  )
+}
