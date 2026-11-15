@@ -1,1 +1,19 @@
-{"compilerOptions":{"declaration":false,"esModuleInterop":true,"forceConsistentCasingInFileNames":true,"lib":["ES2022"],"module":"commonjs","moduleResolution":"node","outDir":"dist","resolveJsonModule":true,"rootDir":"src","skipLibCheck":true,"sourceMap":true,"strict":true,"target":"ES2022"},"exclude":["node_modules","dist","tests"],"include":["src"]}
+{
+  "compilerOptions": {
+    "declaration": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2022"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "exclude": ["node_modules", "dist", "tests"],
+  "include": ["src"]
+}

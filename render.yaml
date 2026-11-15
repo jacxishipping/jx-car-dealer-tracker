@@ -1,0 +1,49 @@
+# Render Blueprint — JX Car Dealer Tracker
+# After first deploy:
+# 1. Shell into the API and run: npm run migrate
+# 2. Optionally: npm run seed-admin (set ADMIN_EMAIL / ADMIN_PASSWORD / ORG_NAME first)
+# 3. Set CORS_ORIGIN on the API to the static site URL (https://jx-dealer-web.onrender.com)
+# 4. Confirm VITE_API_URL on the static site matches the API URL, then Clear build cache & deploy
+
+databases:
+  - name: jx-dealer-db
+    plan: basic-256mb
+    databaseName: jx_dealer
+    user: jx_dealer
+    postgresMajorVersion: "16"
+    region: frankfurt
+
+services:
+  - type: web
+    name: jx-dealer-api
+    runtime: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jx-dealer-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://jx-dealer-web.onrender.com
+
+  - type: web
+    name: jx-dealer-web
+    runtime: static
+    rootDir: .
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://jx-dealer-api.onrender.com
