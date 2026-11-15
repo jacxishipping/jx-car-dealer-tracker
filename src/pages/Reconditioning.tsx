@@ -296,9 +296,9 @@ export default function Reconditioning() {
                         onClose={() => setExpenseJob(null)}
                       >
                         {error && <div className="mb-4"><Alert severity="error" title="Could not record expense" description={error} /></div>}
-                        <p className="mb-4 text-sm text-slate-500">
+                        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
                           This creates a Direct expense in the {expenseJob.category} category, linked to this vehicle.
-                          It does not change the recon job itself.
+                          It posts to the expense ledger and vehicle all-in cost — it does not overwrite the job&apos;s Actual cost field (update that separately when the shop invoice is final).
                         </p>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <Field label="Description"><input className={inputCls} value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} /></Field>

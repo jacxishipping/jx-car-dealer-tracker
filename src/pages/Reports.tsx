@@ -184,12 +184,28 @@ export default function Reports() {
     <>
       <PageHeader title="Reports" subtitle="Pick a report, set the period, review the computed summary and export it as CSV. Nothing here is pre-written — every row is computed from live state." />
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <aside className="flex gap-2 overflow-x-auto pb-2 lg:grid lg:gap-2 lg:overflow-visible lg:pb-0">
-          {REPORTS.map((r) => (
-            <JXButton key={r.id} variant={selected === r.id ? 'contained' : 'outlined'} size="sm" lockWidth={false} className="shrink-0 lg:w-full" onClick={() => setSelected(r.id)}>
-              <span className="text-left">{r.label}</span>
-            </JXButton>
-          ))}
+        <aside>
+          <div className="mb-3 lg:hidden">
+            <Field label="Report">
+              <select
+                className={inputCls}
+                value={selected}
+                onChange={(e) => setSelected(e.target.value as ReportId)}
+                aria-label="Choose report"
+              >
+                {REPORTS.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <div className="hidden gap-2 lg:grid">
+            {REPORTS.map((r) => (
+              <JXButton key={r.id} variant={selected === r.id ? 'contained' : 'outlined'} size="sm" lockWidth={false} className="w-full" onClick={() => setSelected(r.id)}>
+                <span className="text-left">{r.label}</span>
+              </JXButton>
+            ))}
+          </div>
         </aside>
 
         <section>

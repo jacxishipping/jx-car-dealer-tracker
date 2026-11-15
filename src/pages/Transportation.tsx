@@ -4,6 +4,7 @@ import {JXButton, JXSelect} from '../components/JXUI'
 // Delivering an order (store updateTransport) adds its price to the vehicle
 // cost basis and sets an In-transit vehicle to Received.
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { ChevronDown, ChevronUp, Plus, Truck } from 'lucide-react'
 import { useStore } from '../store/store'
@@ -18,9 +19,16 @@ const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export default function Transportation() {
   const { state, addTransport, updateTransport } = useStore()
-  const [open, setOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openFromQuery = searchParams.get('new') === '1'
+  const [openLocal, setOpenLocal] = useState(false)
+  const open = openLocal || openFromQuery
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const closeModal = () => {
+    setOpenLocal(false)
+    if (openFromQuery) setSearchParams({}, { replace: true })
+  }
   const [statusFilter, setStatusFilter] = useState('All')
   const [carrierFilter, setCarrierFilter] = useState('All')
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -88,7 +96,7 @@ export default function Transportation() {
       photos: [],
     })
     setSuccess(`Transport order created for ${vehicleById.get(f.vehicleId)?.stockNumber ?? ''} (${f.carrier.trim()}, ${fmtMoney(num(f.price))}).`)
-    setOpen(false)
+    closeModal()
     setF({ ...f, vehicleId: '', carrier: '', driver: '', pickupLocation: '', price: '', gatePass: '', billOfLading: '', damageNotes: '', invoiceRef: '' })
   }
 
@@ -109,7 +117,7 @@ export default function Transportation() {
                 InvoiceRef: t.invoiceRef, DamageNotes: t.damageNotes, PaymentStatus: t.paymentStatus,
               }
             })} />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpen(true) }}>
+            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
               <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />New transport order</span>
             </JXButton>
           </>
@@ -131,7 +139,7 @@ export default function Transportation() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No transport orders found" detail="Adjust the filters, or create a new transport order." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpen(true)}>New transport order</JXButton>} />
+        <EmptyState title="No transport orders found" detail="Adjust the filters, or create a new transport order." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpenLocal(true)}>New transport order</JXButton>} />
       ) : (
         <>
           <TableScrollHint />
@@ -210,7 +218,7 @@ export default function Transportation() {
       {controls}
 
       {open && (
-        <Modal title="New transport order" onClose={() => setOpen(false)} wide>
+        <Modal title="New transport order" onClose={closeModal} wide>
           {error && <div className="mb-4"><Alert severity="error" title="Could not create order" description={error} /></div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Vehicle *">
@@ -248,7 +256,7 @@ export default function Transportation() {
               Marking an order Delivered later adds its price to the vehicle&apos;s cost basis and sets an In-transit vehicle to Received.
             </p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <JXButton variant="outlined" size="sm" onClick={() => setOpen(false)}>Cancel</JXButton>
+              <JXButton variant="outlined" size="sm" onClick={closeModal}>Cancel</JXButton>
               <JXButton variant="contained" size="sm" onClick={submit}>Create order</JXButton>
             </div>
         </Modal>

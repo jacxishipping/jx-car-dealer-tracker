@@ -2,6 +2,7 @@ import ResponsiveTable from '../components/ResponsiveTable'
 import {JXButton, JXSelect} from '../components/JXUI'
 // Expenses — filterable expense ledger with direct/overhead totals and CSV export.
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { Plus } from 'lucide-react'
@@ -17,9 +18,16 @@ const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export default function Expenses() {
   const { state, recordExpense } = useStore()
-  const [open, setOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openFromQuery = searchParams.get('new') === '1'
+  const [openLocal, setOpenLocal] = useState(false)
+  const open = openLocal || openFromQuery
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const closeModal = () => {
+    setOpenLocal(false)
+    if (openFromQuery) setSearchParams({}, { replace: true })
+  }
   const [catFilter, setCatFilter] = useState('All')
   const [kindFilter, setKindFilter] = useState<'All' | 'Direct' | 'Overhead'>('All')
   const [vehicleFilter, setVehicleFilter] = useState('All')
@@ -83,7 +91,7 @@ export default function Expenses() {
       notes: f.notes.trim(),
     })
     setSuccess(`Expense recorded — ${f.description.trim()} (${fmtMoney(num(f.amount))}).${f.status === 'Paid' ? ' Payment and journal entry posted.' : ' Left pending.'}`)
-    setOpen(false)
+    closeModal()
     setF({ ...f, description: '', amount: '', vendor: '', invoiceRef: '', notes: '', vehicleId: '' })
   }
 
@@ -100,7 +108,7 @@ export default function Expenses() {
               Vendor: e.vendor, Amount: e.amount, PaymentMethod: e.paymentMethod,
               Status: e.status, InvoiceRef: e.invoiceRef, Notes: e.notes,
             }))} />
-            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpen(true) }}>
+            <JXButton variant="contained" size="sm" onClick={() => { setError(null); setOpenLocal(true) }}>
               <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" />Record expense</span>
             </JXButton>
           </>
@@ -139,7 +147,7 @@ export default function Expenses() {
         </p>
 
         {filtered.length === 0 ? (
-        <EmptyState title="No expenses match" detail="Adjust the filters, or record an expense." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpen(true)}>Record expense</JXButton>} />
+        <EmptyState title="No expenses match" detail="Adjust the filters, or record an expense." action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={() => setOpenLocal(true)}>Record expense</JXButton>} />
         ) : (
         <>
           <TableScrollHint />
@@ -181,7 +189,7 @@ export default function Expenses() {
         {controls}
 
         {open && (
-          <Modal title="Record expense" onClose={() => setOpen(false)} wide>
+          <Modal title="Record expense" onClose={closeModal} wide>
             {error && <div className="mb-4"><Alert severity="error" title="Could not record expense" description={error} /></div>}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Description *"><input className={inputCls} value={f.description} onChange={set('description')} placeholder="e.g. Brake pads + labour — CDT-103" /></Field>
@@ -225,7 +233,7 @@ export default function Expenses() {
                 Paid expenses also post a payment transaction and journal entry. Recorded by {state.currentUser}.
               </p>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <JXButton variant="outlined" size="sm" onClick={() => setOpen(false)}>Cancel</JXButton>
+                <JXButton variant="outlined" size="sm" onClick={closeModal}>Cancel</JXButton>
                 <JXButton variant="contained" size="sm" onClick={submit}>Record expense</JXButton>
               </div>
           </Modal>

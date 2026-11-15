@@ -1,5 +1,6 @@
 import ResponsiveTable from '../components/ResponsiveTable'
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { AppTextField as JXTextField } from "../components/AppTextField"
 import { useStore } from '../store/store'
@@ -11,11 +12,18 @@ import {JXButton, JXCard, JXSelect} from '../components/JXUI'
 export default function Parts() {
   const { state, receivePartBatch, allocatePart, addPart } = useStore()
   const { parts, partBatches, partMovements, partAllocations, vehicles } = state
+  const [searchParams, setSearchParams] = useSearchParams()
+  const receiveFromQuery = searchParams.get('receive') === '1'
   const [search, setSearch] = useState('')
   const [selectedPartId, setSelectedPartId] = useState<string | null>(parts[0]?.id ?? null)
   const [movementFilter, setMovementFilter] = useState('All')
-  const [showReceive, setShowReceive] = useState(false)
+  const [showReceiveLocal, setShowReceiveLocal] = useState(false)
+  const showReceive = showReceiveLocal || receiveFromQuery
   const [showNewPart, setShowNewPart] = useState(false)
+  const closeReceive = () => {
+    setShowReceiveLocal(false)
+    if (receiveFromQuery) setSearchParams({}, { replace: true })
+  }
 
   // New part form
   const [newSku, setNewSku] = useState('')
@@ -113,7 +121,7 @@ export default function Parts() {
         subtitle="FIFO stock: oldest batches are consumed first, so the cost of every allocation is the real batch cost."
         actions={[
           <JXButton key="new" variant="outlined" size="sm" onClick={() => { setNewPartError(''); setNewPartDone(''); setShowNewPart(true) }}>+ New part</JXButton>,
-          <JXButton key="recv" variant="contained" size="sm" onClick={() => { if (!recvPartId && parts[0]) setRecvPartId(parts[0].id); setRecvError(''); setRecvDone(''); setShowReceive(true) }}>+ Receive batch</JXButton>,
+          <JXButton key="recv" variant="contained" size="sm" onClick={() => { if (!recvPartId && parts[0]) setRecvPartId(parts[0].id); setRecvError(''); setRecvDone(''); setShowReceiveLocal(true) }}>+ Receive batch</JXButton>,
           <ExportButton key="exp" filename="parts.csv" rows={parts.map((p) => ({ sku: p.sku, name: p.name, manufacturer: p.manufacturer, supplier: p.supplier, stock: partStock(partBatches, p.id), minStock: p.minStock, fifoValue: partValue(partBatches, p.id) }))} />,
         ]}
       />
@@ -221,11 +229,9 @@ export default function Parts() {
             </div>
         </div>
 
-        {/* Part detail + allocate */}
+        {/* Part detail + allocate — hide empty detail when catalog is empty */}
         <div className="xl:col-span-2 space-y-5">
-          {!selectedPart ? (
-            <EmptyState title="No part selected" detail="Select a part from the catalog to see its batches." />
-          ) : (
+          {selectedPart ? (
             <JXCard
               title={`${selectedPart.name} (${selectedPart.sku})`}
               kicker={partStock(partBatches, selectedPart.id) <= selectedPart.minStock ? 'Reorder — at or below minimum stock' : 'In stock'}
@@ -273,9 +279,11 @@ export default function Parts() {
                         )
                       }
             </JXCard>
-                  )
-                }
+          ) : parts.length > 0 ? (
+            <EmptyState title="No part selected" detail="Select a part from the catalog to see its batches." />
+          ) : null}
 
+              {parts.length > 0 && (
               <JXCard title="Allocate to vehicle" description="Consumes the oldest batches first (FIFO). The returned FIFO cost is shown below — and the store's insufficient-stock error if there is not enough stock."
                 className="!rounded-[var(--radius-card)] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
                 {allocResult && <div className="mb-3"><Alert severity={allocResult.ok ? 'success' : 'error'} title={allocResult.ok ? 'Allocated' : 'Cannot allocate'} description={allocResult.text} /></div>}
@@ -291,16 +299,17 @@ export default function Parts() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">Example from the seed data: allocating 12 brake pads to CDT-103 cost $620 — 10 @ $50 + 2 @ $60.</p>
                 </div>
               </JXCard>
+              )}
             </div>
       </div>
 
         {showReceive && (
-          <Modal title="Receive batch" onClose={() => setShowReceive(false)}>
+          <Modal title="Receive batch" onClose={closeReceive}>
             {recvError && <div className="mb-3"><Alert severity="error" title="Check the form" description={recvError} /></div>}
             {recvDone && <div className="mb-3"><Alert severity="success" title="Batch received" description={recvDone} /></div>}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <JXSelect label="Part" className="jx-select-field jx-field-select" searchable placeholder="Select a part" value={recvPartId} onChange={setRecvPartId}
+                <JXSelect label="Part" className="jx-select-field jx-field-select" searchable placeholder="Select a part" value={recvPartId || parts[0]?.id || ''} onChange={setRecvPartId}
                   options={parts.map((p) => ({ id: p.id, label: `${p.name} (${p.sku})` }))} />
               </div>
               <Field label="Quantity received *"><input className={inputCls} type="number" min="1" step="1" value={recvQty} onChange={(e) => setRecvQty(e.target.value)} placeholder="e.g. 10" /></Field>
@@ -309,7 +318,7 @@ export default function Parts() {
             </div>
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">The new batch is dated today and becomes the newest FIFO batch — older batches are still consumed first.</p>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <JXButton variant="outlined" onClick={() => setShowReceive(false)}>Close</JXButton>
+              <JXButton variant="outlined" onClick={closeReceive}>Close</JXButton>
               <JXButton variant="contained" onClick={submitReceive}>Receive batch</JXButton>
             </div>
           </Modal>

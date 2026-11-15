@@ -297,16 +297,16 @@ export default function AiAssistant() {
                       </JXButton>
                       <JXButton
                         type="button"
-                        variant="outlined"
+                        variant="text"
                         lockWidth={false}
-                        title="Voice input"
-                        onClick={() => setVoiceNote('Voice input is not connected in this build — type your command.')}
+                        title="Voice input is not available in this build"
+                        onClick={() => setVoiceNote('Voice input is not connected in this build — type your command or tap an example below.')}
                         className="w-full sm:w-auto"
                       >
-                        <span className="inline-flex items-center gap-1.5"><Mic className="h-4 w-4" /> Voice</span>
+                        <span className="inline-flex items-center gap-1.5"><Mic className="h-4 w-4" /> Voice (unavailable)</span>
                       </JXButton>
                   </form>
-                  {voiceNote && <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">{voiceNote}</p>}
+                  {voiceNote && <p className="mt-2 text-sm text-amber-700 dark:text-amber-400" role="status">{voiceNote}</p>}
 
                   <div className="mt-4">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Example commands — tap to fill in</p>

@@ -169,7 +169,11 @@ export default function Sales() {
                 ))}
               </div>
               {pageItems.length === 0 ? (
-                <EmptyState title="No deals match" detail="Change the status filter or create a new deal." />
+                <EmptyState
+                  title={deals.length === 0 ? 'No deals yet' : 'No deals match'}
+                  detail={deals.length === 0 ? 'Create a draft deal to start quoting and finalising sales.' : 'Change the status filter or create a new deal.'}
+                  action={<JXButton variant="contained" size="sm" lockWidth={false} onClick={openNewDeal}>+ New deal</JXButton>}
+                />
               ) : (
                   <>
                     <TableScrollHint />
@@ -240,11 +244,9 @@ export default function Sales() {
                       </div>
                     </div>
 
-                    {/* Deal detail / profitability */}
+                    {/* Deal detail / profitability — only when a deal is selected */}
                     <div className="xl:col-span-2">
-                      {!selected || !selVehicle || !profit ? (
-                        <EmptyState title="No deal selected" detail="Select a deal from the table to see its cost breakdown and profitability." />
-                      ) : (
+                      {selected && selVehicle && profit ? (
                         <JXCard
                           title={`${selected.ref} — ${vehLabel(selVehicle)}`}
                           kicker={selected.status === 'Finalized' ? 'Finalised sale' : 'Estimate — not yet finalised'}
@@ -300,7 +302,9 @@ export default function Sales() {
                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Recorded sale {selSale.ref} on {selSale.date}: price <Money value={selSale.sellingPrice} />, total cost <Money value={selSale.totalCost} />, gross <Money value={selSale.grossProfit} />, net <Money value={selSale.netProfit} />.</p>
                           )}
                         </JXCard>
-                      )}
+                      ) : deals.length > 0 ? (
+                        <EmptyState title="No deal selected" detail="Select a deal from the table to see its cost breakdown and profitability." />
+                      ) : null}
                     </div>
                   </div>
                     </>

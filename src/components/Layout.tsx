@@ -54,12 +54,13 @@ const NAV_SECTIONS = [
 ] as const
 
 const QUICK_CREATE = [
-  { to: '/inventory', label: 'New vehicle' },
-  { to: '/purchases?new=1', label: 'New purchase' },
-  { to: '/expenses', label: 'New expense' },
-  { to: '/sales', label: 'New deal' },
-  { to: '/crm', label: 'New customer' },
-  { to: '/parts', label: 'Receive parts' },
+  { to: '/inventory/new', label: 'New vehicle' },
+  { to: '/purchases/new', label: 'New purchase' },
+  { to: '/expenses?new=1', label: 'New expense' },
+  { to: '/sales/new', label: 'New deal' },
+  { to: '/crm/new', label: 'New customer' },
+  { to: '/parts?receive=1', label: 'Receive parts' },
+  { to: '/transportation?new=1', label: 'New transport order' },
 ]
 
 export default function Layout() {

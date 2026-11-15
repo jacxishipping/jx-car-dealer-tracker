@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Dashboard() {
   const { state } = useStore()
   const [alertFilter, setAlertFilter] = useState('All')
+  const [showMoreKpis, setShowMoreKpis] = useState(false)
   const kpis = dashboardKpis(state)
   const series = monthlySeries(state, 6)
   const fc = forecast(state)
@@ -59,15 +60,29 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <KpiCard label="Inventory value" value={fmtMoney(kpis.inventoryValue)} sub={`${kpis.stockCount} vehicles in stock`} tone="indigo" />
-              <KpiCard label="Acquisition cost" value={fmtMoney(kpis.acquisitionCost)} sub="Purchase price + auction fees, all vehicles" tone="sky" />
               <KpiCard label="Sales revenue" value={fmtMoney(kpis.salesRevenue)} sub={`${kpis.sold} sold`} tone="emerald" />
-              <KpiCard label="Gross profit" value={fmtMoney(kpis.grossProfit)} sub="Revenue − vehicle costs" tone="emerald" />
               <KpiCard label="Net profit" value={fmtMoney(kpis.netProfit)} sub={`Margin ${kpis.marginPct.toFixed(1)}% of revenue`} tone={kpis.netProfit >= 0 ? 'emerald' : 'rose'} />
-              <KpiCard label="Total expenses" value={fmtMoney(kpis.totalExpenses)} sub="Direct + overhead" tone="amber" />
               <KpiCard label="Cash" value={fmtMoney(kpis.cash)} sub="All accounts combined" tone="sky" />
-              <KpiCard label="Receivables" value={fmtMoney(kpis.receivables)} sub="Owed by customers" tone="amber" />
-              <KpiCard label="Payables" value={fmtMoney(kpis.payables)} sub="Owed to vendors / carriers" tone="rose" />
               <KpiCard label="In transit / recon" value={`${kpis.inTransit} / ${kpis.inRecon}`} sub={`${kpis.available} available · ${kpis.reserved} reserved`} tone="indigo" />
+            </div>
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setShowMoreKpis((open) => !open)}
+                aria-expanded={showMoreKpis}
+                className="text-sm font-semibold text-indigo-700 hover:underline dark:text-indigo-300"
+              >
+                {showMoreKpis ? 'Hide extra metrics' : 'Show more metrics'}
+              </button>
+              {showMoreKpis && (
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  <KpiCard label="Acquisition cost" value={fmtMoney(kpis.acquisitionCost)} sub="Purchase price + auction fees, all vehicles" tone="sky" />
+                  <KpiCard label="Gross profit" value={fmtMoney(kpis.grossProfit)} sub="Revenue − vehicle costs" tone="emerald" />
+                  <KpiCard label="Total expenses" value={fmtMoney(kpis.totalExpenses)} sub="Direct + overhead" tone="amber" />
+                  <KpiCard label="Receivables" value={fmtMoney(kpis.receivables)} sub="Owed by customers" tone="amber" />
+                  <KpiCard label="Payables" value={fmtMoney(kpis.payables)} sub="Owed to vendors / carriers" tone="rose" />
+                </div>
+              )}
             </div>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-2">

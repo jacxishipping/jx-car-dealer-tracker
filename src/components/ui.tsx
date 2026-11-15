@@ -205,7 +205,7 @@ export function TableScrollHint() {
   return <p className="mb-1 text-xs text-slate-500 dark:text-slate-400 lg:hidden">Compact card view · full table on larger screens</p>
 }
 
-export const inputCls = 'w-full rounded-[var(--radius-control)] border border-slate-300 bg-white px-3 py-2 text-base md:text-sm text-slate-900 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:focus:border-indigo-400 dark:focus:ring-indigo-500/20'
+export const inputCls = 'w-full rounded-[var(--radius-control)] border border-slate-300 bg-white px-3.5 py-2.5 text-base md:text-sm text-slate-900 placeholder:text-slate-400 placeholder:font-normal outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/20'
 export const selectCls = inputCls
 
 export function ExportButton({ filename, rows, label = 'Export CSV' }: { filename: string; rows: Record<string, string | number | null | undefined>[]; label?: string }) {

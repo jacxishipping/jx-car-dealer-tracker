@@ -111,18 +111,6 @@ export default function Inventory() {
         }
       />
 
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <div className="w-full sm:w-60">
-          <JXSelect label="Inventory view" className="jx-select-field jx-field-select" options={viewOptions} value={activeView} placeholder="Choose a saved view" onChange={applyView} />
-        </div>
-        <div className="flex min-w-56 flex-1 gap-2">
-          <label className="sr-only" htmlFor="inventory-view-name">Name this view</label>
-          <JXTextField id="inventory-view-name" className="jx-text-field" label="" value={viewName} onChange={setViewName} placeholder="Name current view…" />
-          <JXButton variant="outlined" size="sm" lockWidth={false} disabled={!viewName.trim()} onClick={saveCurrentView}>Save view</JXButton>
-          {activeView.startsWith('view-') && <JXButton variant="text" size="sm" lockWidth={false} aria-label="Delete selected saved view" onClick={() => { setSavedViews((views) => views.filter((view) => view.id !== activeView)); setActiveView('preset:all') }}><Trash2 className="h-4 w-4" /><span className="sr-only">Delete view</span></JXButton>}
-        </div>
-      </div>
-
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1">
           <JXTextField id="inventory-search" className="jx-text-field" label="Search VIN, stock, make or model" value={query} onChange={(v) => { setQuery(v); setActiveView(''); reset(); setSelectedIds([]) }} placeholder="e.g. CDT-101, Toyota…" />
@@ -156,6 +144,23 @@ export default function Inventory() {
           </JXButton>
         </div>
       </div>
+
+      {state.vehicles.length > 0 && (
+        <details className="mb-4 rounded-[var(--radius-control)] border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-[var(--color-surface-dark)]">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Saved views</summary>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <div className="w-full sm:w-60">
+              <JXSelect label="Inventory view" className="jx-select-field jx-field-select" options={viewOptions} value={activeView} placeholder="Choose a saved view" onChange={applyView} />
+            </div>
+            <div className="flex min-w-56 flex-1 gap-2">
+              <label className="sr-only" htmlFor="inventory-view-name">Name this view</label>
+              <JXTextField id="inventory-view-name" className="jx-text-field" label="" value={viewName} onChange={setViewName} placeholder="Name current view…" />
+              <JXButton variant="outlined" size="sm" lockWidth={false} disabled={!viewName.trim()} onClick={saveCurrentView}>Save view</JXButton>
+              {activeView.startsWith('view-') && <JXButton variant="text" size="sm" lockWidth={false} aria-label="Delete selected saved view" onClick={() => { setSavedViews((views) => views.filter((view) => view.id !== activeView)); setActiveView('preset:all') }}><Trash2 className="h-4 w-4" /><span className="sr-only">Delete view</span></JXButton>}
+            </div>
+          </div>
+        </details>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState

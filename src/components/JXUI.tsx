@@ -21,8 +21,32 @@ type Classed<T> = T & { className?: string }
 const mergeClass = (base: string, extra?: string) => `${base}${extra ? ` ${extra}` : ''}`
 
 export function JXButton(props: ComponentProps<typeof LibraryButton>) {
-  const { className, lockWidth, variant = 'contained', color = 'primary', ...rest } = props
-  return <LibraryButton {...rest} variant={variant} color={color} lockWidth={lockWidth ?? false} spring={false} halo={false} className={mergeClass(`jx-app-button jx-app-button--${variant} jx-app-button--${color}`, className)} />
+  // Library JXButton hardcodes type="button", so type="submit" never reaches the DOM.
+  // When callers ask for submit, requestSubmit on click so forms still work.
+  const { className, lockWidth, variant = 'contained', color = 'primary', type = 'button', onClick, ...rest } = props
+  return (
+    <LibraryButton
+      {...rest}
+      type={type}
+      variant={variant}
+      color={color}
+      lockWidth={lockWidth ?? false}
+      spring={false}
+      halo={false}
+      className={mergeClass(`jx-app-button jx-app-button--${variant} jx-app-button--${color}`, className)}
+      onClick={(event) => {
+        onClick?.(event)
+        if (event.defaultPrevented || type !== 'submit') return
+        const target = event.currentTarget as HTMLButtonElement
+        if (target.type === 'submit') return
+        const form = target.closest('form')
+        if (form) {
+          event.preventDefault()
+          form.requestSubmit()
+        }
+      }}
+    />
+  )
 }
 
 export function JXButtonGroup(props: ComponentProps<typeof LibraryButtonGroup>) {

@@ -83,7 +83,7 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
         }
       />
 
-                <div className="mb-5 flex flex-wrap items-center gap-3">
+                <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-[var(--color-surface-dark)] sm:sticky sm:top-[4.25rem] sm:z-20">
                   <StatusChip value={vehicle.status} />
                   <div className="w-full sm:w-56">
                     <JXSelect
@@ -94,7 +94,14 @@ function Section({ title, kicker, children }: { title: string; kicker?: string; 
                       onChange={(val) => updateVehicleStatus(vehicle.id, val as VehicleStatus)}
                     />
                   </div>
-                  {vehicle.notes && <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.notes}</p>}
+                  <div className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">{vehicle.stockNumber}</span>
+                    <span className="mx-2 text-slate-400">·</span>
+                    Asking <Money value={vehicle.askingPrice} />
+                    <span className="mx-2 text-slate-400">·</span>
+                    All-in <Money value={allIn} />
+                  </div>
+                  {vehicle.notes && <p className="w-full text-sm text-slate-500 dark:text-slate-400">{vehicle.notes}</p>}
                 </div>
 
                 <Section title="Vehicle pipeline" kicker="Lifecycle progress">
